@@ -202,43 +202,95 @@ def decode_mfg_date(raw: bytes) -> Optional[str]:
     return None
 
 
+# ─── Known DoIP Addresses (Taycan J1.1 platform) ────────────────────────
+# These are platform-level — same across all J1.1 vehicles.
+# No per-vehicle discovery step needed.
+
+KNOWN_ECUS = [
+    (0x400B, "EV_RDKHUFPO68X"),
+    (0x400C, "EV_SMLSKLOAU736"),
+    (0x400E, "EV_BCM1BOSCHAU651"),
+    (0x4010, "EV_Gatew31xPO513"),
+    (0x4012, "EV_EPSBOPO68X"),
+    (0x4013, "EV_ESP9BOSCHPO513"),
+    (0x4014, "EV_DashBoardLGEPO513"),
+    (0x4015, "EV_AirbaVW31SMEAU65x"),
+    (0x401C, "EV_ActuaForIntNoise"),
+    (0x4023, "EV_DeckLidCONTIAU536"),
+    (0x4024, "EV_MASGMarquPO622"),
+    (0x403B, "EV_BrakeBoostBOSCHPO513"),
+    (0x403F, "EV_DCU2RearPasseMAXHCONT"),
+    (0x4042, "EV_ThermContrVISAU49X"),
+    (0x4044, "EV_OBC3Phase1KLOMLBev16B"),
+    (0x4046, "EV_ACClimaBHTCPO513"),
+    (0x404A, "EV_DCU2DriveSideMAXHCONT"),
+    (0x404B, "EV_DCU2PasseSideMAXHCONT"),
+    (0x404C, "EV_SCMDriveSideCONTIAU736"),
+    (0x404D, "EV_SCMPasseSideCONTIAU736"),
+    (0x404F, "EV_ZFASAU516"),
+    (0x4053, "EV_GSMWaehlJOPPPO68X"),
+    (0x4057, "EV_ACCBOSCHAU65X"),
+    (0x4064, "EV_ESoundMLBEvoS1NN"),
+    (0x4067, "EV_ConBoxHighAU49X"),
+    (0x406F, "EV_AMPMst16C4Gen2BOSE"),
+    (0x4073, "EV_MUTI"),
+    (0x4076, "EV_VCU00XXX0209J1909101XX"),
+    (0x407B, "EV_BECM1982091"),
+    (0x407C, "EV_PWR1HIAMSPO513"),
+    (0x4080, "EV_ChassContrContiPO513"),
+    (0x4086, "EV_OTAFCHarmaPO513"),
+    (0x408B, "EV_BCM2HellaAU736"),
+    (0x4096, "EV_LLPGen3LKEBODPO68X"),
+    (0x4097, "EV_LLPGen3RKEBODPO68X"),
+    (0x40A5, "EV_Charg1MobilDevicAU651"),
+    (0x40B7, "EV_DCDC400VBasisPREHPO513"),
+    (0x40B8, "EV_PWR2HIAMSPO513"),
+    (0x40C7, "EV_HVChargBoostPREHPO513"),
+    (0x40F1, "EV_AirbaVW31SMEAU65x"),
+]
+
+
 def load_ecu_registry(json_path: str = None) -> list[dict]:
     """
-    Load ECU registry from discovered_ecus.json.
-    Returns list of {doip_address: int, name: str, asam_id: str, sw_number: str}.
+    Load ECU registry. Tries discovered_ecus.json first (if it exists),
+    otherwise uses the built-in KNOWN_ECUS list. No manual discovery step needed.
     """
+    # Try loading from discovered_ecus.json (has per-vehicle SW numbers)
     if json_path is None:
         json_path = os.path.join(os.path.dirname(__file__), "..",
                                  "discovered_ecus.json")
 
+    ecus = []
     try:
         with open(json_path) as f:
             raw = json.load(f)
+        for entry in raw:
+            addr_str = entry.get("doip_address", "0x0000")
+            addr = int(addr_str, 16)
+            asam = entry.get("asam_id") or ""
+            sw = entry.get("sw_number") or ""
+            if not asam and sw.startswith("EV_"):
+                asam = sw
+                sw = ""
+            name = ASAM_TO_NAME.get(asam, asam or f"ECU {addr_str}")
+            ecus.append({
+                "doip_address": addr,
+                "doip_address_hex": f"0x{addr:04X}",
+                "name": name,
+                "asam_id": asam,
+                "sw_number": sw,
+            })
     except FileNotFoundError:
-        return []
+        # Fall back to built-in address list
+        for addr, asam in KNOWN_ECUS:
+            name = ASAM_TO_NAME.get(asam, asam)
+            ecus.append({
+                "doip_address": addr,
+                "doip_address_hex": f"0x{addr:04X}",
+                "name": name,
+                "asam_id": asam,
+                "sw_number": "",
+            })
 
-    ecus = []
-    for entry in raw:
-        addr_str = entry.get("doip_address", "0x0000")
-        addr = int(addr_str, 16)
-        asam = entry.get("asam_id") or ""
-        sw = entry.get("sw_number") or ""
-
-        # For 0x4076 the ASAM/SW are swapped in the scan data
-        if not asam and sw.startswith("EV_"):
-            asam = sw
-            sw = ""
-
-        name = ASAM_TO_NAME.get(asam, asam or f"ECU {addr_str}")
-
-        ecus.append({
-            "doip_address": addr,
-            "doip_address_hex": f"0x{addr:04X}",
-            "name": name,
-            "asam_id": asam,
-            "sw_number": sw,
-        })
-
-    # Sort by address
     ecus.sort(key=lambda e: e["doip_address"])
     return ecus

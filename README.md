@@ -62,18 +62,7 @@ sudo ifconfig en7 inet 169.254.10.1 netmask 255.255.0.0 up
 
 The ignition must be **ON** (foot on brake + start button), not just accessory mode. The gateway won't respond otherwise.
 
-### 5. Find all ECU addresses
-
-```bash
-source .venv/bin/activate
-python3 taycan_find_ecus.py --quick
-```
-
-This opens a single TCP connection and probes ~8000 addresses in ~30 seconds. It saves the results to `discovered_ecus.json`, which the dashboard uses as its ECU registry.
-
-The gateway IP and VIN are auto-discovered — no manual config needed.
-
-### 6. Launch the dashboard
+### 5. Launch the dashboard
 
 ```bash
 cd taycan-dashboard

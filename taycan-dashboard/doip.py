@@ -261,7 +261,7 @@ def discover_gateway(broadcast_ip: str = "169.254.255.255",
             result["mac"] = payload[19:25].hex(":")
 
         return result
-    except socket.timeout:
+    except (socket.timeout, OSError):
         return None
     finally:
         sock.close()

@@ -11,7 +11,7 @@ import time
 from datetime import datetime
 from typing import Optional
 
-from doip import DoIPConnection
+from doip import DoIPConnection, discover_gateway
 import config
 
 
@@ -22,19 +22,50 @@ def ensure_scans_dir():
     os.makedirs(SCANS_DIR, exist_ok=True)
 
 
+def auto_discover(progress_callback=None) -> Optional[dict]:
+    """
+    Auto-discover the DoIP gateway via UDP broadcast.
+    Updates config module globals if found.
+    Returns gateway info dict or None.
+    """
+    if progress_callback:
+        progress_callback(0, 0, "Discovering gateway...")
+
+    gw = discover_gateway(timeout=3.0)
+    if gw is None:
+        # Try the narrower subnet broadcast
+        gw = discover_gateway(broadcast_ip="169.254.255.255", timeout=3.0)
+
+    if gw:
+        config.GATEWAY_IP = gw["ip"]
+        if gw.get("vin"):
+            config.VEHICLE_VIN = gw["vin"]
+        if gw.get("logical_address"):
+            config.GATEWAY_LOGICAL_ADDRESS = gw["logical_address"]
+
+    return gw
+
+
 def run_scan(gateway_ip: str = None,
              ecu_registry: list[dict] = None,
              progress_callback=None) -> dict:
     """
     Run a full diagnostic scan of all ECUs.
+    Auto-discovers the gateway if no IP is provided or the default is a placeholder.
 
     progress_callback(current, total, message) is called during scan
     for live progress updates.
 
     Returns the complete scan result dict.
     """
-    if gateway_ip is None:
-        gateway_ip = config.GATEWAY_IP
+    # Auto-discover gateway if needed
+    if gateway_ip is None or gateway_ip == "169.254.10.10":
+        gw = auto_discover(progress_callback)
+        if gw:
+            gateway_ip = gw["ip"]
+        elif gateway_ip is None:
+            gateway_ip = config.GATEWAY_IP
+
     if ecu_registry is None:
         ecu_registry = config.load_ecu_registry()
 

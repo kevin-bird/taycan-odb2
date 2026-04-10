@@ -44,9 +44,8 @@ def index():
 
 @app.route("/api/status")
 def api_status():
-    """Connection and vehicle status."""
-    gw = discover_gateway(config.GATEWAY_IP.rsplit(".", 1)[0] + ".255",
-                          timeout=1.0)
+    """Connection and vehicle status. Auto-discovers gateway."""
+    gw = scanner.auto_discover()
     return jsonify({
         "gateway_reachable": gw is not None,
         "gateway_ip": config.GATEWAY_IP,

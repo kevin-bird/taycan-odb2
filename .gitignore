@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Scan data (contains vehicle-specific info)
+taycan-dashboard/scans/*.json
+discovered_ecus.json
+becm_did_dump*.txt
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Taycan Diagnostic Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #12131a;
+  --surface2: #1a1b25;
+  --border: #2a2b35;
+  --text: #e0e0e8;
+  --text-dim: #7a7b88;
+  --accent: #00d4aa;
+  --accent-dim: #00d4aa33;
+  --red: #ff4466;
+  --amber: #ffaa33;
+  --green: #44cc88;
+  --blue: #4488ff;
+  --porsche: #d5001c;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Mono', 'Fira Code', monospace;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ─── Header ───────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 1px;
+}
+
+.logo span { color: var(--accent); }
+
+.vehicle-info {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.vehicle-info .value { color: var(--text); font-weight: 600; }
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.connection-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+}
+
+.connection-dot.connected { background: var(--green); }
+
+.scan-btn {
+  padding: 8px 20px;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+
+.scan-btn:hover { opacity: 0.85; }
+.scan-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.scan-progress {
+  font-size: 12px;
+  color: var(--accent);
+  max-width: 300px;
+  text-align: right;
+}
+
+.scan-time {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* ─── Main Layout ──────────────────────────────────── */
+.main {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ─── Battery Panel ────────────────────────────────── */
+.battery-panel {
+  display: grid;
+  grid-template-columns: 220px 1fr 1fr;
+  gap: 20px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.card-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+}
+
+/* SoH Gauge */
+.soh-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.gauge-container {
+  position: relative;
+  width: 160px;
+  height: 160px;
+}
+
+.gauge-svg {
+  width: 160px;
+  height: 160px;
+  transform: rotate(-90deg);
+}
+
+.gauge-bg {
+  fill: none;
+  stroke: var(--surface2);
+  stroke-width: 10;
+}
+
+.gauge-fill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 10;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.8s ease;
+}
+
+.gauge-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.gauge-value {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.gauge-unit {
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.gauge-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Battery Stats */
+.battery-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.stat-value {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.soc-bar-container {
+  margin-top: 4px;
+}
+
+.soc-bar-bg {
+  width: 100%;
+  height: 20px;
+  background: var(--surface2);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.soc-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--amber), var(--green));
+  border-radius: 10px;
+  transition: width 0.8s ease;
+}
+
+.charging-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.charging-badge.yes {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.charging-badge.no {
+  background: var(--surface2);
+  color: var(--text-dim);
+}
+
+.telemetry-hex {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  word-break: break-all;
+  margin-top: 8px;
+  padding: 8px;
+  background: var(--bg);
+  border-radius: 4px;
+}
+
+/* Trend Chart */
+.trend-card { min-height: 200px; }
+.trend-card canvas { max-height: 220px; }
+
+/* ─── ECU Grid ─────────────────────────────────────── */
+.ecu-grid-section { }
+
+.ecu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ecu-tile {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  font-size: 12px;
+}
+
+.ecu-tile:hover { border-color: var(--accent); }
+
+.ecu-tile.healthy { border-left: 3px solid var(--green); }
+.ecu-tile.stored-dtc { border-left: 3px solid var(--amber); }
+.ecu-tile.active-dtc { border-left: 3px solid var(--red); }
+.ecu-tile.unreachable { border-left: 3px solid var(--border); opacity: 0.5; }
+
+.ecu-name {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ecu-addr {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.ecu-dtc-count {
+  float: right;
+  font-weight: 600;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.ecu-dtc-count.has-dtc {
+  background: var(--amber);
+  color: var(--bg);
+}
+
+.ecu-dtc-count.active {
+  background: var(--red);
+  color: #fff;
+}
+
+/* ─── ECU Detail Modal ─────────────────────────────── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.active { display: flex; }
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal h2 {
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.modal .addr {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+}
+
+.modal table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.modal td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal td:first-child {
+  color: var(--text-dim);
+  width: 140px;
+}
+
+.modal .dtc-item {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.modal .dtc-code { font-weight: 600; }
+
+.modal .dtc-flags {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.modal .dtc-flags .active { color: var(--red); font-weight: 600; }
+.modal .dtc-flags .confirmed { color: var(--amber); }
+
+.close-btn {
+  float: right;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 20px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.close-btn:hover { color: var(--text); }
+
+/* ─── DTC Summary ──────────────────────────────────── */
+.dtc-summary { }
+
+.dtc-group {
+  margin-top: 12px;
+}
+
+.dtc-group-header {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.dtc-entry {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0 6px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--surface2);
+}
+
+.dtc-entry .code { font-weight: 600; }
+
+.dtc-entry .flags {
+  display: flex;
+  gap: 8px;
+}
+
+.flag {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.flag.active { background: var(--red); color: #fff; }
+.flag.confirmed { background: var(--amber); color: var(--bg); }
+.flag.pending { background: var(--blue); color: #fff; }
+
+.no-faults {
+  color: var(--green);
+  font-size: 14px;
+  padding: 16px 0;
+}
+
+/* ─── Scan History ─────────────────────────────────── */
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 12px;
+}
+
+.history-table th {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.history-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--surface2);
+}
+
+.history-table tr {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.history-table tr:hover { background: var(--surface2); }
+.history-table tr.active { background: var(--accent-dim); }
+
+/* ─── Bottom Grid ──────────────────────────────────── */
+.bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* ─── Responsive ───────────────────────────────────── */
+@media (max-width: 1024px) {
+  .battery-panel { grid-template-columns: 1fr; }
+  .bottom-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  .header { flex-direction: column; gap: 12px; }
+  .ecu-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">TAYCAN <span>DIAG</span></div>
+    <div class="vehicle-info">
+      <div>VIN <span class="value" id="hdr-vin">---</span></div>
+      <div>Model <span class="value" id="hdr-model">---</span></div>
+      <div>Platform <span class="value" id="hdr-platform">---</span></div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="scan-time" id="scan-time"></div>
+    <div class="scan-progress" id="scan-progress"></div>
+    <div class="connection-dot" id="conn-dot" title="Gateway connection"></div>
+    <button class="scan-btn" id="scan-btn" onclick="startScan()">Scan Now</button>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- Battery Panel -->
+  <div class="battery-panel">
+
+    <!-- SoH Gauge -->
+    <div class="card soh-card">
+      <div class="card-title">State of Health</div>
+      <div class="gauge-container">
+        <svg class="gauge-svg" viewBox="0 0 160 160">
+          <circle class="gauge-bg" cx="80" cy="80" r="65"/>
+          <circle class="gauge-fill" id="soh-gauge" cx="80" cy="80" r="65"
+                  stroke-dasharray="408.4" stroke-dashoffset="408.4"/>
+        </svg>
+        <div class="gauge-text">
+          <div class="gauge-value" id="soh-value">--</div>
+          <div class="gauge-unit">%</div>
+        </div>
+      </div>
+      <div class="gauge-label">Battery Health</div>
+    </div>
+
+    <!-- Battery Stats -->
+    <div class="card">
+      <div class="card-title">Battery Status</div>
+      <div class="battery-stats">
+        <div>
+          <div class="stat-row">
+            <span class="stat-label">State of Charge</span>
+            <span class="stat-value" id="soc-value">--%</span>
+          </div>
+          <div class="soc-bar-container">
+            <div class="soc-bar-bg">
+              <div class="soc-bar-fill" id="soc-bar" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Charging</span>
+          <span id="charging-status"><span class="charging-badge no">Unknown</span></span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Temp (min / max)</span>
+          <span class="stat-value" id="temp-value">-- / --</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Module Status</span>
+          <span class="stat-value" id="module-status">--</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Pack Telemetry</span>
+        </div>
+        <div class="telemetry-hex" id="telemetry-hex">--</div>
+      </div>
+    </div>
+
+    <!-- SoH Trend -->
+    <div class="card trend-card">
+      <div class="card-title">SoH Trend</div>
+      <canvas id="trend-chart"></canvas>
+    </div>
+
+  </div>
+
+  <!-- ECU Grid -->
+  <div class="card ecu-grid-section">
+    <div class="card-title">
+      ECU Status
+      <span id="ecu-summary" style="float:right; color: var(--text-dim); text-transform: none; letter-spacing: 0;">--</span>
+    </div>
+    <div class="ecu-grid" id="ecu-grid"></div>
+  </div>
+
+  <!-- Bottom: DTC Summary + Scan History -->
+  <div class="bottom-grid">
+    <div class="card dtc-summary">
+      <div class="card-title">Fault Codes</div>
+      <div id="dtc-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Scan History</div>
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>SoH</th>
+            <th>SoC</th>
+            <th>DTCs</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody id="history-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ECU Detail Modal -->
+<div class="modal-overlay" id="ecu-modal">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal()">&times;</button>
+    <h2 id="modal-name"></h2>
+    <div class="addr" id="modal-addr"></div>
+    <table id="modal-info"></table>
+    <div id="modal-dtcs" style="margin-top: 16px;"></div>
+  </div>
+</div>
+
+<script src="/static/dashboard.js"></script>
+</body>
+</html>

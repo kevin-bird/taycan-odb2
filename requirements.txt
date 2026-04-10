@@ -1,0 +1,5 @@
+doipclient>=1.1.0
+udsoncan>=1.21
+scapy>=2.5
+rich>=13.0
+click>=8.0

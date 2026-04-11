@@ -433,22 +433,50 @@ Both return identical values. If these are SoH:
 
 **Note:** 86% SoH is lower than the 95-96% we initially assumed from the (incorrect) 0x028C interpretation. Cross-reference with a Porsche dealer report would be definitive.
 
-#### Cell voltage array — DID 0x0667 (396 bytes)
+#### Cell voltage array — DID 0x0667 (396 bytes, 198 × uint16 BE)
 
-The largest responding DID. Structured as 198 × uint16 BE values, all prefixed with `0x01XX`:
+The largest responding DID on the BECM. Offline analysis of the captured hex:
 
-```
-01 89 01 6e 01 4e 01 41 01 2d 01 41 01 82 01 6e ...
-```
+- **198 uint16 BE values** (396 bytes)
+- High byte is always `0x01`, low byte varies from 19 to 150
+- **Groups exactly into 33 modules × 6 values each**
+- Within each module, **position 1 is always highest, position 5 is always lowest** — this is a sorted block, not raw cell voltages in physical order
 
-Decoded as uint16 BE: values range `0x0119` (281) to `0x0196` (406). If these are cell voltages with `×10 mV` scale, that gives a range of **2810 mV to 4060 mV** — exactly the operating range of a Li-ion cell.
+**Structural interpretation:** Taycan Performance Plus has 12 cells per module wired as **6 parallel pairs**. This gives 6 unique voltage measurement points per module × 33 modules = **198 cell pair voltages across the whole pack**.
 
-The Performance Battery Plus has **396 cells in 33 modules (12 cells each)**. 198 values = half of 396, so this may be:
-- 198 cell pair averages, or
-- 198 cells from one half of the pack, or
-- 33 modules × 6 parameters each
+**Encoding hypothesis:** Raw value + 3400 mV offset
+- Value range `0x0113` (275) → `0x0196` (406)
+- Decoded range: **3675 mV to 3806 mV**
+- At 57% SoC, this is plausible for NMC 811 cells
+- Spread within a module: up to 131 mV (moderate-to-high imbalance)
 
-**Needs:** Read at low SoC vs high SoC to confirm voltage swing and identify which cells are the weakest (lowest voltage under load = highest internal resistance = degraded).
+**Verification required:** Read at very different SoC (e.g. 20%) and confirm:
+1. Values track SoC (all shift down at low SoC)
+2. Relative ordering between modules remains stable
+3. Spread between highest and lowest cell grows under load
+
+**Weakest module identified (captured at 57% SoC):**
+
+| Rank | Module | Min raw | Min voltage | Spread |
+|------|--------|---------|-------------|--------|
+| 1 (worst) | 26 | 275 | 3.675 V | 91 mV |
+| 2 | 23 | 281 | 3.681 V | 99 mV |
+| 3 | 13 | 288 | 3.688 V | 92 mV |
+| 3 | 16 | 288 | 3.688 V | 92 mV |
+| 3 | 25 | 288 | 3.688 V | 92 mV |
+| 6 | 2, 9, 10, 15 | 294 | 3.694 V | 92-99 mV |
+
+Module 26 has the weakest cell pair in the pack — the first to degrade. Module 23 has the widest internal spread (99 mV), suggesting active imbalance.
+
+**Position pattern across all 33 modules (mean values):**
+- Position 1: 377 (highest, always)
+- Position 2: 346
+- Position 3: 327
+- Position 4: 320
+- Position 5: 313 (lowest, always)
+- Position 6: 322
+
+Positions 1 and 5 may be max/min cell in the module. Positions 2-4 may be intermediate cells or historical readings. Position 6 may be module average or the 6th physical cell pair.
 
 #### Per-module status — DIDs 0x1821–0x1841 (33 × 3 bytes)
 

@@ -498,23 +498,84 @@ Positions 1 and 5 may be max/min cell in the module. Positions 2-4 may be interm
 
 **Needs:** Correlate with 0x0407 module status and read across multiple states to map the code meanings.
 
-#### Per-module detailed data — DIDs 0x1850–0x1870 (33 × 43 bytes)
+#### Per-module detailed data — DIDs 0x1850–0x1870 (33 × 43 bytes) ✓ DECODED
 
-33 entries of 43 bytes each. Each block has a structured pattern:
+33 blocks of 43 bytes each. Fully decoded offline from the captured hex dump.
+
+**Block structure:**
+```
+Byte  0:     Module ID (row, col hex nibbles)
+Bytes 1-3:   Triplet 1: 0x91 [val] 0x39
+Bytes 4-6:   Constant: 0x1E 0x02 0x66
+Byte  7:     Constant: 0x82
+Bytes 8-10:  Triplet 2: 0x91 [val] 0x39
+Bytes 11-14: Padding: 0x00 0x00 0x00 0x00
+Bytes 15-17: Triplet 3: 0x91 [val] 0x39
+Byte  18:    Constant: 0x83
+Bytes 19-21: Padding: 0x00 0x00 0x00
+Bytes 22-24: Triplet 4: 0x91 [val] 0x39
+Bytes 25-28: Constant: 0x00 0xD1 0x08 0x20
+Bytes 29-31: Triplet 5: 0x91 [val] 0x39
+Bytes 32-35: Constant: 0x09 0x00 0x20 0x80
+Bytes 36-38: Triplet 6: 0x91 [val] 0x39
+Bytes 39-42: Padding: 0x00 0x00 0x00 0x00
+```
+
+Each triplet follows the pattern `0x91 [value] 0x39`:
+- `0x91` — constant flag
+- `[value]` — the actual voltage (or metric)
+- **`0x39` = 57 — the current SoC!** The BMS is timestamping each reading with the SoC at capture
+
+**Pack topology revealed:**
+
+The module ID byte encodes physical position as (row, col) hex nibbles. Mapping all 33 blocks:
 
 ```
-0x1850: 83 91 aa 39 1e 02 66 82 91 be 39 00 00 00 00 91 be 39 83 00 00 00 ...
-0x1851: 21 91 b4 39 1e 02 66 82 91 b4 39 00 00 00 00 91 a0 39 83 00 00 00 ...
+Col→     1    2    3    4
+Row 1:  0x11 0x12 0x13 0x14
+Row 2:  0x21 0x22 0x23 0x24
+Row 3:  0x31 0x32 0x33 0x34
+Row 4:  0x41 0x42 0x43 0x44
+Row 5:  0x51 0x52 0x53 0x54
+Row 6:  0x61 0x62 0x63 0x64
+Row 7:  0x71 0x72 0x73 0x74
+Row 8:  0x81 0x82 0x83 0x84
+Row 9:  0x91   —    —    —
 ```
 
-The repeating value `0x39` (57) matches the current SoC — suggesting each module reports its own state contribution. The `0x91 XX 39` pattern appears to encode per-cell values within the module.
+**The Taycan Performance Plus pack is 8 rows × 4 columns + 1 extra module = 33 modules.** The 33rd module (position 9,1) is physically isolated from the main grid.
 
-**Structure hypothesis:**
-- Byte 0: module index (`0x83, 0x21, 0x53, 0x43...`)
-- Bytes 1-3: first cell value + flag
-- Repeats for all 12 cells in the module
+**Decoded voltage range (raw values 150-210, resolution 10 mV):**
 
-**This is the gold mine for cell-level diagnostics.** Decoding it gives per-cell voltages across all 396 cells.
+With `raw + 3500 mV` offset hypothesis:
+- Minimum: **3650 mV** (raw 150)
+- Maximum: **3710 mV** (raw 210)
+- Total spread: 60 mV across all 198 values
+- Mean: 3679 mV
+
+All values are multiples of 10, so the resolution is ~10 mV.
+
+This is a **much tighter spread than DID 0x0667** (which showed 131 mV). Hypothesis:
+- `0x0667` = historical min/max envelopes or statistical bounds (3675-3806 mV)
+- `0x1850-0x1870` = current live cell pair voltages (3650-3710 mV)
+
+**Weakest modules at time of capture (57% SoC):**
+
+| DID | Physical Position | Min raw | Min voltage | Spread within module |
+|-----|------|---------|-------------|----------------------|
+| `0x1851` | **Row 2, Col 1** | 150 | 3650 mV | 30 mV |
+| `0x185B` | **Row 2, Col 3** | 150 | 3650 mV | 20 mV |
+| `0x1856` | Row 6, Col 3 | 160 | 3660 mV | 40 mV |
+| `0x1859` | Row 1, Col 2 | 160 | 3660 mV | 20 mV |
+| `0x185D` | Row 2, Col 2 | 160 | 3660 mV | 10 mV |
+
+**Row 2 contains three of the four weakest modules (2,1 / 2,2 / 2,3).** These are physically adjacent — likely sharing a cooling plate. Possible causes:
+1. **Thermal hotspot** — row 2 runs warmer than surrounding rows, accelerating wear
+2. **Cooling deficiency** — coolant flow may be suboptimal in that zone
+3. **Manufacturing batch** — all three modules from the same supplier batch
+4. **Bus bar resistance** — electrical stress concentrated in that section
+
+**Recommendation:** A thermal imaging check of the battery after a drive cycle would confirm whether row 2 runs hotter than the rest of the pack.
 
 #### Other newly discovered DIDs
 

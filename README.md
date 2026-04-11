@@ -6,11 +6,20 @@ Open-source diagnostic tool for the Porsche Taycan (J1 / J1.1 platform). Connect
 
 ## What it does
 
-- **Battery health monitoring** — reads State of Health (SoH), State of Charge (SoC), temperatures, module status, and charging state directly from the BECM
-- **Full ECU scan** — probes all 42 ECUs for identification (part numbers, software versions, serial numbers) and fault codes (DTCs)
-- **DTC filtering** — separates real faults from the thousands of "test not completed" entries that VAG ECUs return
-- **Scan history** — every scan is auto-saved to JSON with SoH/SoC trend tracking over time
-- **Live dashboard** — dark-themed browser UI with gauges, ECU grid (color-coded by fault status), and trend charts
+- **Battery health monitoring** — reads SoH, SoC, pack voltage, current, power, temperatures, module balancing status, and charging state directly from the BECM
+- **Full ECU scan** — probes all 42 ECUs for identification (SW/HW part numbers, versions, serial numbers, FAZIT, manufacturing dates) and fault codes
+- **Fault code lookup** — 69 known Taycan DTCs with descriptions, severity levels, and notes sourced from NHTSA TSBs, forums, and field data
+- **Smart DTC filtering** — separates real faults (active/pending/confirmed) from the ~2800 "test not completed" entries that VAG ECUs return
+- **Scan history** — every scan auto-saved to JSON with SoH/SoC trend charts over time
+- **Auto-discovery** — gateway IP and VIN discovered automatically via UDP broadcast, 40 known ECU addresses built in
+- **Live dashboard** — dark-themed browser UI with battery gauges, ECU grid (color-coded by fault severity), and trend charts
+- **6 recalls tracked** — cross-references scans against known NHTSA recalls (APB5, ARA4/5, ARB6/7, 23V841)
+- **10 diagnostic tips** — expert guidance on HV faults, OBC codes, 12V battery issues, and common fault patterns
+
+## Documentation
+
+- **[TECHNICAL.md](TECHNICAL.md)** — comprehensive reverse-engineering reference for the Taycan J1.1 DoIP protocol. Covers network topology, DoIP message formats, all 42 ECU addresses, BECM battery DID decoding, DTC status byte filtering, scan protocol analysis from pcap captures, and implementation notes.
+- **[taycan_fault_codes.json](taycan_fault_codes.json)** — fault code database with 69 DTC definitions, 26 known-benign OBC codes, 6 NHTSA recalls, and 10 diagnostic tips. Sourced from NHTSA TSBs, TaycanForum, Rennlist, and field scan data.
 
 ## Hardware required
 
@@ -33,8 +42,8 @@ If your Mac doesn't have an Ethernet port, you'll need a USB-C to Ethernet adapt
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/kevinbird61/taycan.git
-cd taycan
+git clone https://github.com/kevin-bird/taycan-odb2.git
+cd taycan-odb2
 ```
 
 ### 2. Create virtual environment and install dependencies
@@ -72,11 +81,34 @@ python3 app.py --host 0.0.0.0 --port 8080
 
 Open http://localhost:8080 in your browser. Click **Scan Now** to pull live data from the car.
 
+The gateway is auto-discovered — no manual IP configuration needed. All 40 known J1.1 ECU addresses are built in.
+
 To access from another device on the same network, use your Mac's IP instead of localhost.
+
+## Dashboard features
+
+### Battery panel
+- **SoH gauge** — large percentage gauge, color-coded (green > 90%, amber > 80%, red below)
+- **SoC bar** — remapped to match car's displayed percentage
+- **Pack voltage** — live HV pack voltage (typically ~800V)
+- **Current / Power** — charge current (A) and power (kW)
+- **Temperature** — battery min/max in celsius
+- **Module status** — per-module balancing indicators
+- **SoH trend chart** — tracks degradation across all saved scans
+
+### ECU grid
+- All 42 ECUs displayed, sorted by importance (powertrain first, then chassis/safety, then body/comfort)
+- Color-coded: green = healthy, amber = stored faults, red = active faults
+- Click any ECU for full detail: SW/HW part numbers, versions, serial, FAZIT, manufacturing date
+
+### Fault codes
+- Real faults only (filters out ~2800 incomplete self-test entries)
+- Each DTC shows description, severity badge, and diagnostic notes from the fault code database
+- Grouped by ECU in the summary panel
 
 ## CLI tools
 
-The repo also includes standalone CLI tools:
+The repo also includes standalone CLI tools for direct interaction:
 
 | Tool | Description |
 |------|-------------|
@@ -93,15 +125,20 @@ The tool communicates using standard automotive protocols:
 
 - **DoIP** (ISO 13400) — Diagnostics over IP, wraps UDS messages in TCP
 - **UDS** (ISO 14229) — Unified Diagnostic Services for reading data and faults
-- Raw TCP sockets are used throughout (the `doipclient` Python library hangs on Taycan gateways)
+- Raw TCP sockets throughout — the `doipclient` Python library hangs on Taycan gateways
 
-### Taycan J1.1 specifics
+See [TECHNICAL.md](TECHNICAL.md) for the full protocol reference including DoIP header formats, routing activation, diagnostic message wrapping, and UDS service details.
+
+### Key Taycan J1.1 findings
 
 - Gateway logical address: `0x4010` (not the typical `0x1010`)
 - All ECU addresses are in the `0x40xx` range
-- The BECM (battery controller) is at DoIP address `0x407B`
-- SoC is at DID `0x0286` with scale factor `x0.75`
-- SoH is at DID `0x028C` as a direct percentage
+- BECM (battery controller) at `0x407B`
+- SoC: DID `0x0286`, formula `(raw - 5) / 132 * 100` (remapped to match car display)
+- SoH: DID `0x028C`, direct percentage
+- Pack voltage: DID `0x02BD` bytes 2-3, scale `x0.15V`
+- Pack current: DID `0x02BD` bytes 0-1, scale `x0.1A` (signed)
+- Temperature: DID `0x02CB`, 2 bytes (min/max celsius)
 
 ## Confirmed ECU addresses (Taycan J1.1)
 
@@ -123,12 +160,14 @@ The tool communicates using standard automotive protocols:
 | 0x4014 | Instrument Cluster | 0x17 |
 | 0x4057 | Adaptive Cruise | 0x13 |
 
-Full list of 42 ECUs is discovered by `taycan_find_ecus.py`.
+Full list of 42 ECUs in [TECHNICAL.md](TECHNICAL.md#3-complete-ecu-address-map).
 
 ## File structure
 
 ```
-taycan/
+taycan-odb2/
+├── TECHNICAL.md                # Full protocol reference
+├── taycan_fault_codes.json     # Fault code database (69 DTCs, recalls, tips)
 ├── taycan_discover.py          # Gateway discovery (UDP)
 ├── taycan_find_ecus.py         # ECU address scanner
 ├── taycan_enumerate.py         # DID enumerator
@@ -140,10 +179,11 @@ taycan/
 ├── requirements.txt            # Python dependencies
 │
 └── taycan-dashboard/           # Web dashboard
-    ├── app.py                  # Flask backend
-    ├── doip.py                 # Raw DoIP/UDS protocol
-    ├── config.py               # Dashboard configuration
-    ├── scanner.py              # Scan orchestration
+    ├── app.py                  # Flask backend + API
+    ├── doip.py                 # Raw DoIP/UDS protocol (no dependencies)
+    ├── config.py               # Dashboard config + battery decoding
+    ├── scanner.py              # Scan orchestration + fault code lookup
+    ├── fault_codes.json        # DTC database (copied at build)
     ├── templates/
     │   └── dashboard.html      # Dashboard UI
     ├── static/

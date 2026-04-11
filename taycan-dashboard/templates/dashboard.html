@@ -549,12 +549,13 @@ body {
 
 .module-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(88px, 110px));
-  gap: 5px;
-  padding: 10px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 12px;
   background: var(--bg);
   border-radius: 8px;
   border: 1px solid var(--border);
+  min-width: 0;
 }
 
 .module-grid-row {
@@ -564,16 +565,18 @@ body {
 .module-tile {
   background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 5px 8px;
+  border-radius: 5px;
+  padding: 8px 10px;
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  column-gap: 8px;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  row-gap: 2px;
   align-items: center;
   cursor: help;
   position: relative;
   transition: background 0.1s, border-color 0.15s;
-  white-space: nowrap;
+  min-width: 0;
 }
 
 .module-tile:hover {
@@ -582,28 +585,38 @@ body {
 }
 
 .module-tile .pos {
-  font-size: 10px;
+  grid-row: 1 / 3;
+  grid-column: 1;
+  font-size: 11px;
   color: var(--text-dim);
   font-weight: 600;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
 }
 
 .module-tile .voltage {
-  font-size: 13px;
+  grid-row: 1;
+  grid-column: 2;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text);
   line-height: 1;
   text-align: right;
+  white-space: nowrap;
 }
 
 .module-tile .voltage-unit {
-  display: none;
+  font-size: 10px;
+  color: var(--text-dim);
+  font-weight: 400;
 }
 
 .module-tile .spread {
-  font-size: 9px;
+  grid-row: 2;
+  grid-column: 2;
+  font-size: 10px;
   color: var(--text-dim);
   line-height: 1;
+  text-align: right;
 }
 
 /* Color-coded by health (relative to pack min/max) */

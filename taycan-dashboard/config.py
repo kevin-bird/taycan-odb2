@@ -14,7 +14,7 @@ from typing import Optional
 # ─── DoIP Connection ──────────────────────────────────────────────────────
 # These are populated by taycan_discover.py — update after first discovery
 
-GATEWAY_IP = "169.254.10.10"          # discovered via UDP broadcast
+GATEWAY_IP = "169.254.217.237"         # discovered via UDP broadcast
 DOIP_PORT = 13400
 TESTER_ADDRESS = 0x0E80
 GATEWAY_LOGICAL_ADDRESS = 0x4010

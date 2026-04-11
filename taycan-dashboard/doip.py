@@ -62,6 +62,13 @@ class DoIPConnection:
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.settimeout(self.timeout)
+            # Bind to the link-local interface so traffic goes via ENET, not Wi-Fi
+            local_ip = _find_link_local_ip()
+            if local_ip:
+                try:
+                    self.sock.bind((local_ip, 0))
+                except OSError:
+                    pass
             self.sock.connect((self.gateway_ip, self.port))
         except (ConnectionRefusedError, TimeoutError, OSError) as e:
             self.connected = False
@@ -230,18 +237,45 @@ class DoIPConnection:
                 resp[0] == UDS_SESSION_CONTROL_RESPONSE)
 
 
+def _find_link_local_ip() -> Optional[str]:
+    """Find a 169.254.x.x IP on any active interface (the ENET adapter)."""
+    import subprocess
+    try:
+        result = subprocess.run(["ifconfig"], capture_output=True, text=True, timeout=5)
+        for line in result.stdout.split("\n"):
+            if "169.254." in line and "inet " in line:
+                parts = line.strip().split()
+                idx = parts.index("inet") + 1 if "inet" in parts else -1
+                if idx > 0 and idx < len(parts):
+                    return parts[idx]
+    except Exception:
+        pass
+    return None
+
+
 def discover_gateway(broadcast_ip: str = "169.254.255.255",
                      port: int = 13400,
                      timeout: float = 3.0) -> Optional[dict]:
     """
     Send DoIP Vehicle Identification Request via UDP broadcast.
+    Binds to the link-local interface so the broadcast goes out
+    the ENET adapter, not Wi-Fi.
     Returns gateway info dict or None.
     """
     request = build_doip_header(PAYLOAD_VEHICLE_ID_REQUEST, 0)
 
+    # Find the local 169.254.x.x IP to bind to the correct interface
+    local_ip = _find_link_local_ip()
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     sock.settimeout(timeout)
+
+    if local_ip:
+        try:
+            sock.bind((local_ip, 0))
+        except OSError:
+            pass
 
     try:
         sock.sendto(request, (broadcast_ip, port))

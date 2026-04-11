@@ -48,6 +48,28 @@ def lookup_dtc(code: str) -> Optional[dict]:
     return None
 
 
+def _read_powertrain_ecu(conn, addr: int) -> dict:
+    """Read the interesting DIDs for a powertrain ECU (inverter/OBC/DC-DC)."""
+    if addr in (0x407C, 0x40B8):
+        dids = config.INVERTER_DIDS
+    elif addr == 0x4044:
+        dids = config.OBC_DIDS
+    elif addr == 0x40B7:
+        dids = config.DCDC_DIDS
+    else:
+        return {}
+
+    raw_dids = {}
+    # Try extended session for better data
+    conn.change_session(addr, session=0x03, timeout=1.5)
+    for did in dids:
+        raw = conn.read_did(addr, did, timeout=0.8)
+        if raw is not None:
+            raw_dids[did] = raw
+    conn.change_session(addr, session=0x01, timeout=1.5)
+    return raw_dids
+
+
 def ensure_scans_dir():
     os.makedirs(SCANS_DIR, exist_ok=True)
 
@@ -111,6 +133,7 @@ def run_scan(gateway_ip: str = None,
         "scan_duration_ms": 0,
         "connection_ok": False,
         "battery": None,
+        "powertrain": None,
         "ecus": [],
         "summary": {
             "ecus_scanned": len(ecu_registry),
@@ -267,11 +290,29 @@ def run_scan(gateway_ip: str = None,
 
                 result["battery"] = config.decode_battery(battery_raw)
 
+            # Powertrain ECU live telemetry (inverters, OBC, DC-DC)
+            if addr in (0x407C, 0x40B8, 0x4044, 0x40B7):
+                powertrain_raw = _read_powertrain_ecu(conn, addr)
+                if powertrain_raw:
+                    if result["powertrain"] is None:
+                        result["powertrain"] = {}
+                    key = {
+                        0x407C: "front_inverter",
+                        0x40B8: "rear_inverter",
+                        0x4044: "obc",
+                        0x40B7: "dcdc",
+                    }[addr]
+                    result["powertrain"][key] = powertrain_raw
+
             result["ecus"].append(ecu_result)
 
         result["summary"]["ecus_reachable"] = reachable
         result["summary"]["ecus_with_dtcs"] = with_dtcs
         result["summary"]["total_dtcs"] = total_dtc_count
+
+        # Decode powertrain data
+        if result["powertrain"]:
+            result["powertrain"] = config.decode_powertrain(result["powertrain"])
 
     finally:
         conn.close()

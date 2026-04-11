@@ -135,6 +135,49 @@ CELL_ARRAY_DID = 0x0667
 # Cell voltage offset for decoding (raw + offset = mV)
 CELL_VOLTAGE_OFFSET_MV = 3500
 
+# ─── Powertrain ECU DIDs (from investigation sweep) ──────────────────────
+# Extra DIDs to read from specific ECUs for live telemetry display
+
+# Inverter DIDs (both 0x407C front and 0x40B8 rear)
+INVERTER_DIDS = [
+    0x028D,  # 2 bytes — motor-specific (RPM or torque candidate)
+    0x02BD,  # 10 bytes — HV bus telemetry (same as BECM)
+    0x02CB,  # Temperature pair
+    0x02FF,  # 19 bytes — power electronics state
+    0x1FFF,  # Firmware version (ASCII)
+]
+
+# OBC (0x4044) DIDs
+OBC_DIDS = [
+    0x02BD,  # Pack telemetry
+    0x15E2,  # Temperature candidate
+    0x1557,  # Charge current limit candidate
+    0x155A,  # Max power candidate
+    0x15EE,  # Session counter
+    0x15EF,  # Session counter
+    0x15F3,  # Lifetime energy counter
+    0x1DDA,  # 5 bytes
+    0x1DDB,  # 9 bytes — 3-phase grid voltage candidate
+    0x1DD0,  # Temperature candidate
+]
+
+# DC-DC Converter (0x40B7) DIDs
+DCDC_DIDS = [
+    0x02BD,  # Pack telemetry
+    0x1100,  # LV bus voltage candidate
+    0x1101,  # LV bus current candidate
+    0x1550,  # HV bus reading 1
+    0x1551,  # HV bus reading 2
+    0x1543,  # HV bus reading 3
+    0x15E2,  # Temperature candidate
+]
+
+# HV Booster (0x40C7) DIDs — to be populated after sweep
+HV_BOOSTER_DIDS = [
+    0x02BD,
+    0x02CB,
+]
+
 
 def decode_battery(raw_dids: dict[int, Optional[bytes]]) -> dict:
     """
@@ -329,6 +372,110 @@ def compute_cell_stats(modules: list) -> dict:
             "module_id": sorted_mods_by_spread[0]["module_id"],
         },
     }
+
+
+def decode_powertrain(powertrain: dict) -> dict:
+    """
+    Decode raw DIDs from powertrain ECUs (inverters, OBC, DC-DC) into
+    dashboard-friendly values.
+    """
+    result = {}
+
+    # Front and rear inverters
+    for key in ("front_inverter", "rear_inverter"):
+        raw = powertrain.get(key)
+        if not raw:
+            continue
+        ecu = {"raw_dids": {}}
+        for did, data in raw.items():
+            if isinstance(data, bytes):
+                ecu["raw_dids"][f"0x{did:04X}"] = data.hex()
+        # 0x028D: 2 bytes — motor-specific metric
+        motor_raw = raw.get(0x028D)
+        if motor_raw and len(motor_raw) >= 2:
+            ecu["motor_metric"] = int.from_bytes(motor_raw[:2], "big")
+        # 0x1FFF: firmware version
+        fw_raw = raw.get(0x1FFF)
+        if fw_raw:
+            try:
+                fw = fw_raw.decode("ascii", errors="replace").strip("\x00").strip()
+                ecu["firmware"] = fw
+            except Exception:
+                pass
+        # 0x02BD: pack telemetry
+        telem = raw.get(0x02BD)
+        if telem and len(telem) >= 4:
+            # Note: inverter telemetry layout may differ; decode as BECM format
+            current_raw = int.from_bytes(telem[0:2], "big", signed=True)
+            voltage_raw = int.from_bytes(telem[2:4], "big")
+            ecu["pack_current_a"] = round(current_raw * 0.1, 1)
+            ecu["pack_voltage_v"] = round(voltage_raw * 0.15, 1)
+        result[key] = ecu
+
+    # OBC
+    obc_raw = powertrain.get("obc")
+    if obc_raw:
+        obc = {"raw_dids": {}}
+        for did, data in obc_raw.items():
+            if isinstance(data, bytes):
+                obc["raw_dids"][f"0x{did:04X}"] = data.hex()
+
+        # 0x1DDB: 9 bytes — 3-phase grid voltage candidate
+        grid = obc_raw.get(0x1DDB)
+        if grid and len(grid) >= 9:
+            # Bytes 3-4, 5-6, 7-8 = three uint16 values
+            v1 = int.from_bytes(grid[3:5], "big")
+            v2 = int.from_bytes(grid[5:7], "big")
+            v3 = int.from_bytes(grid[7:9], "big")
+            obc["grid_raw"] = [v1, v2, v3]
+
+        # 0x15F3: 4 bytes — lifetime energy counter candidate
+        lifetime = obc_raw.get(0x15F3)
+        if lifetime and len(lifetime) >= 4:
+            obc["lifetime_counter"] = int.from_bytes(lifetime, "big")
+
+        # 0x1DD0: temperature candidate
+        temp = obc_raw.get(0x1DD0)
+        if temp and len(temp) >= 1:
+            obc["temperature_c"] = temp[0]
+
+        # 0x15E2: temperature or percent
+        status = obc_raw.get(0x15E2)
+        if status and len(status) >= 1:
+            obc["status_byte"] = status[0]
+
+        result["obc"] = obc
+
+    # DC-DC Converter
+    dcdc_raw = powertrain.get("dcdc")
+    if dcdc_raw:
+        dcdc = {"raw_dids": {}}
+        for did, data in dcdc_raw.items():
+            if isinstance(data, bytes):
+                dcdc["raw_dids"][f"0x{did:04X}"] = data.hex()
+
+        # 0x1550: 10 bytes — HV bus reading 1
+        hv1 = dcdc_raw.get(0x1550)
+        if hv1 and len(hv1) >= 2:
+            hv_raw = int.from_bytes(hv1[:2], "big")
+            # Scale ~0.265 → volts (fits 800V HV bus)
+            dcdc["hv_voltage_v"] = round(hv_raw * 0.265, 1)
+
+        # 0x1100: 2 bytes — LV bus voltage candidate
+        lv = dcdc_raw.get(0x1100)
+        if lv and len(lv) >= 2:
+            lv_raw = int.from_bytes(lv[:2], "big")
+            # Scale ~0.025 → 12V range
+            dcdc["lv_voltage_v"] = round(lv_raw * 0.025, 2)
+
+        # 0x15E2: temperature
+        temp = dcdc_raw.get(0x15E2)
+        if temp and len(temp) >= 1:
+            dcdc["temperature_c"] = temp[0]
+
+        result["dcdc"] = dcdc
+
+    return result
 
 
 def decode_mfg_date(raw: bytes) -> Optional[str]:

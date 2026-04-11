@@ -703,6 +703,93 @@ body {
   font-size: 13px;
 }
 
+/* ─── Powertrain Panel ────────────────────────────── */
+.powertrain-section .card-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.powertrain-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.pt-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pt-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pt-card-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.pt-card-addr {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.pt-metric {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+}
+
+.pt-metric .label {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.pt-metric .value {
+  color: var(--text);
+  font-weight: 600;
+  font-family: 'SF Mono', monospace;
+}
+
+.pt-metric .value .unit {
+  color: var(--text-dim);
+  font-weight: 400;
+  font-size: 11px;
+  margin-left: 3px;
+}
+
+.pt-fw {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-align: center;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-family: 'SF Mono', monospace;
+}
+
+.pt-empty {
+  color: var(--text-dim);
+  font-size: 12px;
+  text-align: center;
+  padding: 8px 0;
+  font-style: italic;
+}
+
 /* ─── Bottom Grid ──────────────────────────────────── */
 .bottom-grid {
   display: grid;
@@ -716,6 +803,7 @@ body {
   .bottom-grid { grid-template-columns: 1fr; }
   .module-grid-wrap { grid-template-columns: 1fr; }
   .cell-stats-bar { grid-template-columns: repeat(2, 1fr); }
+  .powertrain-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
@@ -824,6 +912,15 @@ body {
       <div class="gauge-label">Battery Charge</div>
     </div>
 
+  </div>
+
+  <!-- Powertrain Panel -->
+  <div class="card powertrain-section" id="powertrain-section" style="display:none">
+    <div class="card-title">
+      Powertrain Telemetry
+      <span id="powertrain-subtitle" style="color: var(--text-dim); text-transform: none; letter-spacing: 0; font-weight: 400;">Live data from inverters, OBC, DC-DC</span>
+    </div>
+    <div class="powertrain-grid" id="powertrain-grid"></div>
   </div>
 
   <!-- ECU Grid -->

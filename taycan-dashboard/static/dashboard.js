@@ -151,6 +151,9 @@ function renderScan(scan) {
   renderTemp(bat.temperature_min_c, bat.temperature_max_c);
   renderModuleStatus(bat.module_status, bat.module_data);
 
+  // Powertrain panel
+  renderPowertrain(scan.powertrain);
+
   // ECUs
   renderEcuGrid(scan.ecus || []);
 
@@ -263,6 +266,99 @@ function renderModuleStatus(status, data) {
   } else {
     el.textContent = "--";
   }
+}
+
+// ─── Powertrain Panel ────────────────────────────────────────────────────
+
+function renderPowertrain(powertrain) {
+  const section = document.getElementById("powertrain-section");
+  const grid = document.getElementById("powertrain-grid");
+
+  if (!powertrain || Object.keys(powertrain).length === 0) {
+    section.style.display = "none";
+    return;
+  }
+  section.style.display = "block";
+
+  const cards = [];
+
+  // Front inverter
+  if (powertrain.front_inverter) {
+    const inv = powertrain.front_inverter;
+    const metrics = [];
+    if (inv.pack_voltage_v != null)
+      metrics.push(["HV Bus", `${inv.pack_voltage_v}<span class="unit">V</span>`]);
+    if (inv.pack_current_a != null)
+      metrics.push(["Current", `${inv.pack_current_a}<span class="unit">A</span>`]);
+    if (inv.motor_metric != null)
+      metrics.push(["Motor", `${inv.motor_metric}`]);
+    cards.push(ptCard("Front Inverter", "0x407C", metrics, inv.firmware));
+  }
+
+  // Rear inverter
+  if (powertrain.rear_inverter) {
+    const inv = powertrain.rear_inverter;
+    const metrics = [];
+    if (inv.pack_voltage_v != null)
+      metrics.push(["HV Bus", `${inv.pack_voltage_v}<span class="unit">V</span>`]);
+    if (inv.pack_current_a != null)
+      metrics.push(["Current", `${inv.pack_current_a}<span class="unit">A</span>`]);
+    if (inv.motor_metric != null)
+      metrics.push(["Motor", `${inv.motor_metric}`]);
+    cards.push(ptCard("Rear Inverter", "0x40B8", metrics, inv.firmware));
+  }
+
+  // OBC
+  if (powertrain.obc) {
+    const obc = powertrain.obc;
+    const metrics = [];
+    if (obc.grid_raw && obc.grid_raw.length === 3) {
+      metrics.push(["Grid L1 (raw)", `${obc.grid_raw[0]}`]);
+      metrics.push(["Grid L2 (raw)", `${obc.grid_raw[1]}`]);
+      metrics.push(["Grid L3 (raw)", `${obc.grid_raw[2]}`]);
+    }
+    if (obc.temperature_c != null)
+      metrics.push(["Temp", `${obc.temperature_c}<span class="unit">&deg;C</span>`]);
+    if (obc.lifetime_counter != null)
+      metrics.push(["Lifetime", `${(obc.lifetime_counter / 1000).toFixed(1)}k`]);
+    cards.push(ptCard("On-Board Charger", "0x4044", metrics, null));
+  }
+
+  // DC-DC
+  if (powertrain.dcdc) {
+    const dc = powertrain.dcdc;
+    const metrics = [];
+    if (dc.hv_voltage_v != null)
+      metrics.push(["HV Bus", `${dc.hv_voltage_v}<span class="unit">V</span>`]);
+    if (dc.lv_voltage_v != null)
+      metrics.push(["12V Bus", `${dc.lv_voltage_v}<span class="unit">V</span>`]);
+    if (dc.temperature_c != null)
+      metrics.push(["Temp", `${dc.temperature_c}<span class="unit">&deg;C</span>`]);
+    cards.push(ptCard("DC-DC Converter", "0x40B7", metrics, null));
+  }
+
+  grid.innerHTML = cards.join("");
+}
+
+function ptCard(name, addr, metrics, firmware) {
+  const metricsHtml = metrics.length > 0
+    ? metrics.map(([label, value]) =>
+        `<div class="pt-metric"><span class="label">${label}</span><span class="value">${value}</span></div>`
+      ).join("")
+    : '<div class="pt-empty">no live data</div>';
+
+  const fwHtml = firmware ? `<div class="pt-fw">FW: ${firmware}</div>` : "";
+
+  return `
+    <div class="pt-card">
+      <div class="pt-card-header">
+        <span class="pt-card-name">${name}</span>
+        <span class="pt-card-addr">${addr}</span>
+      </div>
+      ${metricsHtml}
+      ${fwHtml}
+    </div>
+  `;
 }
 
 // ─── Cell / Module Grid ──────────────────────────────────────────────────

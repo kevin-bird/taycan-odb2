@@ -624,6 +624,161 @@ The cluster of values around `0x1CCC`–`0x1CE1` (7372–7393) is suspicious. If
 
 ---
 
+## 4.6 Investigation sweep — other powertrain ECUs
+
+A full investigation sweep across priority 1-4 ECUs was performed using `run_investigation.py`. Findings below.
+
+### Front Inverter (0x407C) — 27 DIDs found
+
+Range swept: `0x0100-0x1FFF`, extended session. Most responses were 0 because the car was stationary (motors not spinning).
+
+**Identity:**
+- `0x1FFF` (20 bytes) = `V8.17.10F` — **Inverter firmware version** (unique to 0x407C/0x40B8)
+
+**Shared HV bus data** (same DIDs as BECM, same values):
+- `0x02BD` (10 bytes) = same pack telemetry as BECM (voltage/current)
+- `0x02CB` (2 bytes) = `0f 0f` (battery temp min/max in °C)
+- `0x0410` (1 byte) = `0x0F` — same temp indicator as BECM
+
+**Inverter-specific (differs between front/rear):**
+- `0x028D` (2 bytes) = `0x067F` (1663) on front, `0x074C` (1868) on rear — **likely motor RPM or torque** (needs driving session to confirm)
+- `0x02E0` (4 bytes) = unique counter per inverter
+- `0x02FF` (19 bytes) = power electronics state block, differs between front/rear
+- `0x02BD` byte 4 = inverter state byte
+
+**At rest (all zero, will populate while driving):**
+- `0x0407` (8 bytes) = module status
+- `0x040F` (8 bytes) = motor control data
+- `0x02EF` (6 bytes) = unused
+- `0x13B0-0x13B5` (1 byte each) = motor event counters
+
+### Rear Inverter (0x40B8) — 27 DIDs found
+
+Identical DID layout to the front inverter. Firmware is also `V8.17.10F`. All the shared HV bus DIDs return identical values since both inverters see the same DC link.
+
+### On-Board Charger (0x4044) — 145 DIDs found
+
+Range swept: `0x0100-0x1FFF`, extended session. The OBC was active (AC charging at 10.5A), so many DIDs returned live data.
+
+**Identity sub-components:**
+- `0x0611` (28 bytes) = dual part numbers `9J1915737AB` / `9J1915737AC`
+- `0x0612` (14 bytes) = `0090` / `0090`
+- `0x0613` (12 bytes) = `H03` (hardware version)
+- `0x0614` (28 bytes) = `9J1915737` / `9J1915737` (base part)
+- `0x0615` (46 bytes) = manufacturing dates `19.07.21` etc.
+- `0x0616` (52 bytes) = supplier version `8BS-8BS19.07.21100104 03`
+- `0x0617` (32 bytes) = sub-component IDs `UX4 ETSA1` / `UX5 ETSA2`
+
+The OBC has **two parallel charging paths** (UX4/UX5) each with its own part number and supplier ID. These are the two AC charging channels.
+
+**ISO 15118 Plug & Charge certificate:**
+- `0x104B` (2857 bytes) — **X.509 DER-encoded certificate** (starts with `30 82 02 53...`)
+- Used for secure DC fast charging authentication
+- This is the public identity certificate; the private key is not accessible
+
+**Large configuration blocks:**
+- `0x0C4B` (2407 bytes) — OBC firmware/config dump, starts with magic `01 23 45 67 00`
+- `0x080C` (30 bytes) = `00000000020000000002A51600EU00` — region/part config code
+
+**Live charging telemetry (captured at 10.5A AC):**
+- `0x1501` (2 bytes) = `0x0360` (864) — incrementing counter
+- `0x1507` (9 bytes) = voltage triplet pattern
+- `0x1525` / `0x1529` (2 bytes each) = `12 07` (1810)
+- `0x1553` (2 bytes) = `0x0800` (2048) — power limit
+- `0x1554` (2 bytes) = `0x0B80` (2944)
+- `0x1557` (2 bytes) = `0x05B4` (1460) — possibly charge current limit
+- `0x1558` (2 bytes) = `0x0D32` (3378)
+- `0x155A` (2 bytes) = `0x0FFC` (4092) — max power?
+- `0x15E2` (1 byte) = `0x3C` (60) — temperature or percent
+- `0x15EE` (4 bytes) = `00 02 06 B9` (132,793) — session counter
+- `0x15EF` (4 bytes) = `00 02 14 FB` (136,443) — session counter
+- `0x15F3` (4 bytes) = `01 02 3D 3D` (17,054,525) — **lifetime energy counter** (plausible Wh total)
+
+**3-phase grid voltage (strong candidate):**
+- `0x1DDA` (5 bytes) = `00 00 FF 02 EE`
+- `0x1DDB` (9 bytes) = `00 00 FF 02 EE 02 EE 02 F9`
+  - Three 16-bit values: `0x02EE` (750), `0x02EE` (750), `0x02F9` (761)
+  - These look like **3-phase AC grid voltages**. At UK 230V supply, raw / 3.26 ≈ 230V
+  - Or another scale may give exactly 230V mapping
+  - Will need to vary (switch between Type 2 and wall socket, or DC fast charge) to confirm
+
+**Internal OBC state (0x1DD0-0x1DFA):**
+- `0x1DD0` (1 byte) = `0x6E` (110) — temperature candidate
+- `0x1DD6` (2 bytes) = `0x0003` — state byte
+- `0x1DE8` (4 bytes) = `00 4B 00 12` — two 16-bit values (75, 18)
+- `0x1DE9` (4 bytes) = `00 2B 00 54` — two 16-bit values (43, 84)
+- `0x1DF2` (1 byte) = `0x03` — OBC status
+
+### DC-DC Converter (0x40B7) — 95 DIDs found
+
+Range swept: `0x0100-0x1FFF`, extended session. The DC-DC was active (converting 800V HV bus down to 12V for accessories).
+
+**Shared HV bus data:** Same `0x02BD`, `0x02CB`, `0x0410` values as all other powertrain ECUs.
+
+**Live telemetry:**
+- `0x1100` (2B) = `0x0216` (534) — candidate **LV (12V) bus voltage** at ~0.025V scale → ~13.35V (reasonable for 12V bus at rest)
+- `0x1101` (2B) = `0x01FE` (510) — candidate **LV current**
+- `0x1102` (2B) = `0x0B82` (2946) — possibly input current reference
+- `0x1104` (2B) = `0x02D7` (727)
+- `0x1105` (2B) = `0x0074` (116) — could be current in 0.1A = 11.6A
+- `0x1540` (24B) = array with values `7D 04 94 03 F4 02 6A` — 4 × uint16 readings
+- `0x1543` (10B) = ends with `0B EA` (3050) — HV bus voltage candidate × 0.265 ≈ 808V ✓
+- `0x1550` (10B) = starts with `0B CD` (3021) — HV bus × 0.265 ≈ 800V ✓
+- `0x1551` (10B) = starts with `0B F5` (3061) — HV bus × 0.265 ≈ 811V ✓
+- `0x15E2` (1B) = `0x41` (65) — **DC-DC internal temperature** (65°C during conversion is reasonable)
+
+**Measurement history arrays (0x1522-0x1529):** Eight 18-byte records each with the same layout: 5 zero bytes, then 4 × uint16 values. These look like rolling time-series snapshots of DC-DC operating points. Values are similar between records (within 10%).
+
+### HV Booster (0x40C7) — 114 DIDs found
+
+Range swept: `0x0100-0x1FFF`, extended session.
+
+**Shared HV bus data:** Same pack telemetry as all other powertrain ECUs (`0x02BD`, `0x02CB`, etc.).
+
+**Idle state:** The HV booster is the DC fast-charge voltage booster. At AC charging, most of its telemetry is zero (the booster is inactive). Only identity and shared HV bus data is populated.
+
+**Interesting DIDs (mostly for future DC charging session):**
+- `0x0912` (2B) = `0x0064` (100) — possibly 100% status
+- `0x0914` (2B) = `0x01F9` (505) — voltage candidate × 0.1 = 50.5V
+- `0x0917` (2B) = `0x01F4` (500) — 50.0V candidate
+- `0x091C` / `0x091E` (2B) = `0x0208` (520) — 52.0V candidate
+- `0x1101` (2B) = `0x0800` (2048) — matches OBC value
+- `0x1102` (2B) = `0x0B80` (2944) — matches OBC value
+- `0x1104` (2B) = `0x05B4` (1460) — matches OBC charge current limit
+- `0x1107` (2B) = `0x05B4` (1460) — same
+- `0x1109-0x110B` (4B each) = close voltage pairs (~2865-2903)
+- `0x1112` (2B) = `0x05CE` (1486)
+- `0x1113` (2B) = `0x0B82` (2946)
+- `0x1500` (2B) = `0x0256` (598) — counter
+- `0x1501` (2B) = `0x03D6` (982) — counter
+- `0x1507`-`0x1509` (3B each) = `0x004DE4`, `0x004DCC`, `0x004E06` (19940, 19916, 19974) — **triple close values, likely 3-phase temperatures** at 0.001°C scale → 19.94°C, 19.92°C, 19.97°C (matches ambient)
+- `0x15E2` (1B) = `0x3F` (63) — temperature
+- `0x15E3` (1B) = `0x3C` (60) — temperature
+- `0x1609` (2B) = `0x0DEF` (3567)
+
+**Time-series arrays 0x1512, 0x1520-0x1570:** 20+ records of 18 bytes each, same format as DC-DC. Values vary between records but follow similar patterns. These are rolling snapshots of booster operating conditions.
+
+### Standardized charging-ECU DID layout
+
+The OBC, DC-DC, and HV Booster **all share the same DID address space layout**:
+- `0x1100-0x111F` — live telemetry pairs
+- `0x1500-0x15FF` — counters and status
+- `0x1520-0x1570` — time-series measurement arrays (18 bytes each)
+- `0x15E2/0x15E3` — temperature (consistent across all 3 ECUs)
+- `0x1DD0-0x1DFA` — internal state
+
+This is a standardized framework within the Porsche HV charging/conversion ECUs.
+
+### What we still need
+
+1. **Driving session** — to unlock inverter motor telemetry (RPM, torque, phase currents). Also fills in the inverter DIDs that are currently zero.
+2. **Different charge rates** — to calibrate OBC grid voltage encoding and power counters
+3. **DC fast charge session** — HV Booster is inactive during AC charging; DC fast charging will populate its telemetry
+4. **0x02BD byte 4 variation** — the one byte in pack telemetry that changes with unknown encoding
+5. **Priorities 3-4 sweeps** — Thermal Mgmt, ESP, Cluster, VCU, Air Susp, EPS still pending. These would reveal ambient temp, odometer, drive mode, etc.
+
+---
+
 ## 5. DTC Status Byte Decoding
 
 The DTC status byte is a bitmask defined by ISO 14229:

@@ -226,9 +226,33 @@ def run_scan(gateway_ip: str = None,
             # Battery DIDs (BECM only)
             if addr == config.BECM_ADDRESS:
                 battery_raw = {}
+
+                # Read default-session battery DIDs
                 for did in config.BATTERY_DIDS:
                     raw = conn.read_did(addr, did, config.UDS_TIMEOUT)
                     battery_raw[did] = raw
+
+                # Switch to extended session for cell-level data
+                if conn.change_session(addr, session=0x03, timeout=2.0):
+                    if progress_callback:
+                        progress_callback(idx + 1, total,
+                                          f"Reading cell data (extended session)")
+
+                    # SoH candidates
+                    for did in config.SOH_CANDIDATE_DIDS:
+                        raw = conn.read_did(addr, did, config.UDS_TIMEOUT)
+                        if raw is not None:
+                            battery_raw[did] = raw
+
+                    # Module grid (0x1850-0x1870) — 33 per-module blocks
+                    for did in config.MODULE_GRID_DIDS:
+                        raw = conn.read_did(addr, did, config.UDS_TIMEOUT)
+                        if raw is not None:
+                            battery_raw[did] = raw
+
+                    # Return to default session
+                    conn.change_session(addr, session=0x01, timeout=2.0)
+
                 result["battery"] = config.decode_battery(battery_raw)
 
             result["ecus"].append(ecu_result)

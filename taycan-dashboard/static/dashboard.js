@@ -156,6 +156,9 @@ function renderScan(scan) {
   // ECUs
   renderEcuGrid(scan.ecus || []);
 
+  // Cell / Module grid
+  renderCellGrid(bat.module_grid, bat.cell_stats);
+
   // DTCs
   renderDtcSummary(scan.ecus || []);
 
@@ -247,6 +250,130 @@ function renderModuleStatus(status, data) {
   } else {
     el.textContent = "--";
   }
+}
+
+// ─── Cell / Module Grid ──────────────────────────────────────────────────
+
+function renderCellGrid(modules, stats) {
+  const section = document.getElementById("cell-section");
+  const gridEl = document.getElementById("module-grid");
+  const statsEl = document.getElementById("cell-stats-bar");
+  const legendEl = document.getElementById("cell-legend");
+
+  if (!modules || modules.length === 0) {
+    section.style.display = "none";
+    return;
+  }
+
+  section.style.display = "block";
+
+  // Pack stats bar
+  const packMin = stats?.pack_min_mv ?? 0;
+  const packMax = stats?.pack_max_mv ?? 0;
+  const packAvg = stats?.pack_avg_mv ?? 0;
+  const packSpread = stats?.pack_spread_mv ?? 0;
+  const spreadClass = packSpread > 100 ? "critical" : packSpread > 50 ? "warning" : "";
+
+  statsEl.innerHTML = `
+    <div class="cell-stat">
+      <div class="cell-stat-label">Modules</div>
+      <div class="cell-stat-value">${stats?.module_count || 0}<span class="cell-stat-unit">/ 33</span></div>
+    </div>
+    <div class="cell-stat">
+      <div class="cell-stat-label">Cell Pair Min</div>
+      <div class="cell-stat-value">${(packMin / 1000).toFixed(3)}<span class="cell-stat-unit">V</span></div>
+    </div>
+    <div class="cell-stat">
+      <div class="cell-stat-label">Cell Pair Max</div>
+      <div class="cell-stat-value">${(packMax / 1000).toFixed(3)}<span class="cell-stat-unit">V</span></div>
+    </div>
+    <div class="cell-stat">
+      <div class="cell-stat-label">Pack Average</div>
+      <div class="cell-stat-value">${(packAvg / 1000).toFixed(3)}<span class="cell-stat-unit">V</span></div>
+    </div>
+    <div class="cell-stat">
+      <div class="cell-stat-label">Spread (Δ)</div>
+      <div class="cell-stat-value ${spreadClass}">${packSpread}<span class="cell-stat-unit">mV</span></div>
+    </div>
+  `;
+
+  // Build 9-row grid (rows 1-9). Row 9 has only col 1 (the extra module).
+  // Modules keyed by row/col for quick lookup
+  const byPos = {};
+  modules.forEach((m) => {
+    byPos[`${m.row},${m.col}`] = m;
+  });
+
+  // Determine thresholds for color coding
+  // Weakest = within 5 mV of packMin → red
+  // Warning = within 15 mV of packMin → amber
+  // Best = within 5 mV of packMax → blue
+  // Rest = green
+  const healthClass = (minMv) => {
+    if (minMv <= packMin + 5) return "weak";
+    if (minMv <= packMin + 15) return "warning";
+    if (minMv >= packMax - 5) return "best";
+    return "healthy";
+  };
+
+  let html = "";
+  for (let row = 1; row <= 9; row++) {
+    for (let col = 1; col <= 4; col++) {
+      const m = byPos[`${row},${col}`];
+      if (m) {
+        const cls = healthClass(m.min_mv);
+        const volts = (m.min_mv / 1000).toFixed(3);
+        const tooltip = [
+          `Module ${m.module_id} (Row ${m.row}, Col ${m.col})`,
+          `DID: ${m.did}`,
+          `Voltages: ${m.voltages_mv.map((v) => (v / 1000).toFixed(3)).join(", ")} V`,
+          `Min: ${m.min_mv} mV`,
+          `Max: ${m.max_mv} mV`,
+          `Avg: ${m.avg_mv} mV`,
+          `Spread: ${m.spread_mv} mV`,
+        ].join("\n");
+        html += `
+          <div class="module-tile ${cls}" title="${tooltip}">
+            <div class="pos">R${m.row}C${m.col}</div>
+            <div class="voltage">${volts}<span class="voltage-unit"> V</span></div>
+            <div class="spread">Δ ${m.spread_mv}mV</div>
+          </div>
+        `;
+      } else if (row === 9) {
+        // Row 9 only has col 1
+        if (col === 1) {
+          html += `<div class="module-tile empty"></div>`;
+        }
+      } else {
+        html += `<div class="module-tile empty"></div>`;
+      }
+    }
+  }
+
+  gridEl.innerHTML = html;
+
+  // Legend + callout
+  const weakest = stats?.weakest_module;
+  const imbalanced = stats?.most_imbalanced_module;
+  legendEl.innerHTML = `
+    <h4>Legend</h4>
+    <div class="legend-row"><div class="legend-swatch best"></div>Highest voltage</div>
+    <div class="legend-row"><div class="legend-swatch healthy"></div>Healthy</div>
+    <div class="legend-row"><div class="legend-swatch warning"></div>Below average</div>
+    <div class="legend-row"><div class="legend-swatch weak"></div>Weakest cell</div>
+    ${weakest ? `
+      <div class="callout">
+        <strong>Weakest:</strong> ${weakest.position}<br>
+        Min voltage: ${(weakest.min_mv / 1000).toFixed(3)} V
+      </div>
+    ` : ""}
+    ${imbalanced && imbalanced.spread_mv > 20 ? `
+      <div class="callout">
+        <strong>Most imbalanced:</strong> ${imbalanced.position}<br>
+        Spread: ${imbalanced.spread_mv} mV
+      </div>
+    ` : ""}
+  `;
 }
 
 // ─── ECU Grid ────────────────────────────────────────────────────────────

@@ -102,11 +102,11 @@ IDENTITY_DIDS = {
 # ─── Battery DIDs (BECM 0x407B) ──────────────────────────────────────────
 
 BATTERY_DIDS = [
-    0x0286,  # SoC
-    0x028C,  # SoH
+    0x0286,  # SoC (raw, needs remap)
+    0x028C,  # SoC display
     0x02B2,  # Charging status
     0x02B3,  # Status flag
-    0x02BD,  # Pack telemetry (10 bytes)
+    0x02BD,  # Pack telemetry (10 bytes) — voltage/current/power
     0x02CB,  # Temperature pair
     0x0407,  # Module status (16 bytes)
     0x040F,  # Module data (16 bytes)
@@ -121,6 +121,19 @@ BATTERY_DIDS = [
     0x04FC,  # Unknown
     0x04FE,  # Unknown
 ]
+
+# SoH candidates (extended session required)
+SOH_CANDIDATE_DIDS = [0x1E1C, 0x1E1E]
+
+# Per-module cell data (extended session required)
+# 33 blocks × 43 bytes each — physical module grid with 6 cell pair voltages
+MODULE_GRID_DIDS = list(range(0x1850, 0x1871))
+
+# Cell voltage array (extended session, 396 bytes = 198 × uint16)
+CELL_ARRAY_DID = 0x0667
+
+# Cell voltage offset for decoding (raw + offset = mV)
+CELL_VOLTAGE_OFFSET_MV = 3500
 
 
 def decode_battery(raw_dids: dict[int, Optional[bytes]]) -> dict:
@@ -142,6 +155,8 @@ def decode_battery(raw_dids: dict[int, Optional[bytes]]) -> dict:
         "pack_telemetry_hex": None,
         "module_status": None,
         "module_data": None,
+        "module_grid": None,        # Physical module map with voltages
+        "cell_stats": None,          # Pack-wide cell voltage stats
         "raw_dids": {},
     }
 
@@ -210,7 +225,110 @@ def decode_battery(raw_dids: dict[int, Optional[bytes]]) -> dict:
             for i in range(0, 16, 2)
         ]
 
+    # Module grid (0x1850-0x1870): 33 blocks with physical position and 6 voltages each
+    grid = decode_module_grid(raw_dids)
+    if grid:
+        result["module_grid"] = grid
+        result["cell_stats"] = compute_cell_stats(grid)
+
+    # SoH candidates (extended session)
+    for did in SOH_CANDIDATE_DIDS:
+        raw = raw_dids.get(did)
+        if raw and len(raw) >= 2:
+            val = int.from_bytes(raw[:2], "big")
+            # Candidate: raw / 10 = percent (e.g. 0x035C = 860 → 86.0%)
+            soh_candidate = val / 10.0
+            if 50 <= soh_candidate <= 110:
+                # Tentatively use the first candidate
+                if result["soh_percent"] is None:
+                    result["soh_percent"] = soh_candidate
+                    result["soh_raw"] = val
+
     return result
+
+
+def decode_module_grid(raw_dids: dict) -> Optional[list]:
+    """
+    Decode the per-module data from DIDs 0x1850-0x1870.
+    Each 43-byte block has a module ID (row, col) and 6 voltage triplets.
+    Returns a list of 33 module dicts with position, voltages, and stats.
+    """
+    modules = []
+    for did in MODULE_GRID_DIDS:
+        raw = raw_dids.get(did)
+        if not raw or len(raw) < 43:
+            continue
+
+        module_id = raw[0]
+        row = (module_id >> 4) & 0x0F
+        col = module_id & 0x0F
+
+        # Extract the 6 triplets at fixed positions (byte 1, 8, 15, 22, 29, 36)
+        triplet_positions = [1, 8, 15, 22, 29, 36]
+        voltages_raw = []
+        valid = True
+        for pos in triplet_positions:
+            if pos + 2 >= len(raw):
+                valid = False
+                break
+            # Validate format: 0x91 [val] 0x39
+            if raw[pos] != 0x91:
+                valid = False
+                break
+            voltages_raw.append(raw[pos + 1])
+
+        if not valid or len(voltages_raw) != 6:
+            continue
+
+        voltages_mv = [v + CELL_VOLTAGE_OFFSET_MV for v in voltages_raw]
+        modules.append({
+            "did": f"0x{did:04X}",
+            "module_id": f"0x{module_id:02X}",
+            "row": row,
+            "col": col,
+            "voltages_mv": voltages_mv,
+            "min_mv": min(voltages_mv),
+            "max_mv": max(voltages_mv),
+            "avg_mv": round(sum(voltages_mv) / len(voltages_mv), 1),
+            "spread_mv": max(voltages_mv) - min(voltages_mv),
+        })
+
+    return modules if modules else None
+
+
+def compute_cell_stats(modules: list) -> dict:
+    """Compute pack-wide cell statistics from module grid."""
+    if not modules:
+        return None
+
+    all_voltages = []
+    for m in modules:
+        all_voltages.extend(m["voltages_mv"])
+
+    if not all_voltages:
+        return None
+
+    sorted_mods_by_min = sorted(modules, key=lambda m: m["min_mv"])
+    sorted_mods_by_spread = sorted(modules, key=lambda m: m["spread_mv"], reverse=True)
+
+    return {
+        "cell_count": len(all_voltages),
+        "module_count": len(modules),
+        "pack_min_mv": min(all_voltages),
+        "pack_max_mv": max(all_voltages),
+        "pack_avg_mv": round(sum(all_voltages) / len(all_voltages), 1),
+        "pack_spread_mv": max(all_voltages) - min(all_voltages),
+        "weakest_module": {
+            "position": f"Row {sorted_mods_by_min[0]['row']}, Col {sorted_mods_by_min[0]['col']}",
+            "min_mv": sorted_mods_by_min[0]["min_mv"],
+            "module_id": sorted_mods_by_min[0]["module_id"],
+        },
+        "most_imbalanced_module": {
+            "position": f"Row {sorted_mods_by_spread[0]['row']}, Col {sorted_mods_by_spread[0]['col']}",
+            "spread_mv": sorted_mods_by_spread[0]["spread_mv"],
+            "module_id": sorted_mods_by_spread[0]["module_id"],
+        },
+    }
 
 
 def decode_mfg_date(raw: bytes) -> Optional[str]:

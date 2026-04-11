@@ -492,6 +492,202 @@ body {
 .history-table tr:hover { background: var(--surface2); }
 .history-table tr.active { background: var(--accent-dim); }
 
+/* ─── Cell Grid (Battery Module Map) ─────────────────── */
+.cell-section { }
+
+.cell-section .card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cell-stats-bar {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  background: var(--surface2);
+  border-radius: 8px;
+}
+
+.cell-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cell-stat-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.cell-stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.cell-stat-value.warning { color: var(--amber); }
+.cell-stat-value.critical { color: var(--red); }
+
+.cell-stat-unit {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: 400;
+  margin-left: 3px;
+}
+
+.module-grid-wrap {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: start;
+}
+
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 16px;
+  background: var(--bg);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.module-grid-row {
+  display: contents;
+}
+
+.module-tile {
+  aspect-ratio: 1.3;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: help;
+  position: relative;
+  transition: transform 0.1s, border-color 0.15s;
+}
+
+.module-tile:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+}
+
+.module-tile .pos {
+  font-size: 10px;
+  color: var(--text-dim);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.module-tile .voltage {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.module-tile .voltage-unit {
+  font-size: 10px;
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+.module-tile .spread {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+/* Color-coded by health (relative to pack min/max) */
+.module-tile.healthy { border-left: 4px solid var(--green); }
+.module-tile.warning { border-left: 4px solid var(--amber); }
+.module-tile.weak    { border-left: 4px solid var(--red); }
+.module-tile.best    { border-left: 4px solid var(--blue); }
+
+.module-tile.empty {
+  background: transparent;
+  border: 1px dashed var(--border);
+  opacity: 0.25;
+  cursor: default;
+}
+.module-tile.empty:hover { transform: none; border-color: var(--border); }
+
+.module-extra-label {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.cell-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 12px;
+  min-width: 180px;
+  padding: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.cell-legend h4 {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border-left: 4px solid var(--green);
+  background: var(--surface2);
+}
+
+.legend-swatch.warning { border-left-color: var(--amber); }
+.legend-swatch.weak    { border-left-color: var(--red); }
+.legend-swatch.best    { border-left-color: var(--blue); }
+
+.cell-legend .callout {
+  padding: 10px;
+  background: var(--surface2);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.cell-legend .callout strong { color: var(--red); }
+
+.no-cell-data {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
 /* ─── Bottom Grid ──────────────────────────────────── */
 .bottom-grid {
   display: grid;
@@ -503,11 +699,14 @@ body {
 @media (max-width: 1024px) {
   .battery-panel { grid-template-columns: 1fr; }
   .bottom-grid { grid-template-columns: 1fr; }
+  .module-grid-wrap { grid-template-columns: 1fr; }
+  .cell-stats-bar { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
   .header { flex-direction: column; gap: 12px; }
   .ecu-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .cell-stats-bar { grid-template-columns: 1fr 1fr; }
 }
 </style>
 </head>
@@ -607,6 +806,19 @@ body {
       <span id="ecu-summary" style="float:right; color: var(--text-dim); text-transform: none; letter-spacing: 0;">--</span>
     </div>
     <div class="ecu-grid" id="ecu-grid"></div>
+  </div>
+
+  <!-- Cell/Module Grid -->
+  <div class="card cell-section" id="cell-section" style="display:none">
+    <div class="card-title">
+      Battery Module Map
+      <span id="cell-subtitle" style="color: var(--text-dim); text-transform: none; letter-spacing: 0; font-weight: 400;">8 rows × 4 cols + 1 · 33 modules · 198 cell pair voltages</span>
+    </div>
+    <div class="cell-stats-bar" id="cell-stats-bar"></div>
+    <div class="module-grid-wrap">
+      <div class="module-grid" id="module-grid"></div>
+      <div class="cell-legend" id="cell-legend"></div>
+    </div>
   </div>
 
   <!-- Bottom: DTC Summary + Scan History -->

@@ -10,6 +10,7 @@ taycan-dashboard/scans/*.json
 discovered_ecus.json
 becm_did_dump*.txt
 FINDINGS.md
+research_scans/
 
 # macOS
 .DS_Store

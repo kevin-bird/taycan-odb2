@@ -281,17 +281,21 @@ The raw BMS SoC has a usable range of approximately 5 (0% displayed) to 137 (100
 
 This is a live value — changes in real-time during charging/driving.
 
-#### DID 0x028C — State of Health (SoH)
+#### DID 0x028C — SoC Display (BMS-remapped percentage)
 
 | Property | Value |
 |----------|-------|
 | Size | 1 byte |
-| Encoding | Direct percentage (raw = %) |
-| Example | `0x5F` (95) = 95% |
+| Encoding | Direct percentage, already remapped |
+| Example | `0x39` (57) = 57% (car dashboard showed 56%) |
 
-Static value that doesn't change between consecutive reads. May fluctuate 1–2% between sessions as the BMS recalculates based on recent charge/discharge cycles, cell balancing state, and temperature. This is normal — SoH is not a fixed number.
+**IMPORTANT:** Initially assumed to be SoH, but confirmed as display-ready SoC:
+- Car at ~97% → DID reads 96
+- Car at 56% → DID reads 57
 
-Expected range for a 2020–2024 Taycan: 88–98% depending on age, mileage, and charging habits.
+Tracks ~1% above the displayed SoC. This is the BMS's own pre-remapped value — use as a fallback when DID 0x0286 doesn't respond.
+
+**The real SoH DID has not been conclusively identified yet.** See section 4.5 for SoH candidates under investigation.
 
 #### DID 0x02B2 — Charging Status
 
@@ -409,6 +413,125 @@ Value: `0x81 85 A2 67 6D`. First byte `0x81` may be a flag/address byte. Remaini
 | `0xF1AA` | AX2 | Workshop system ID |
 | `0xF1B6` | `00 8C 00 7B` | VAG→DoIP address mapping |
 | `0xF17C` | KT8-09604.11.2100290050 | FAZIT (factory acceptance test ID) |
+
+### 4.5 Extended Session Findings (DID sweep 0x0500–0x1FFF)
+
+A comprehensive sweep of the BECM in extended diagnostic session (0x10 0x03) revealed 134 additional DIDs not available in default session. These include per-module data, cell voltages, and SoH candidates.
+
+#### SoH candidates (unconfirmed)
+
+| DID | Size | Raw | Decoded |
+|-----|------|-----|---------|
+| `0x1E1C` | 2 bytes | `0x035C` (860) | 86.0% at ×0.1 scale |
+| `0x1E1E` | 2 bytes | `0x035C` (860) | 86.0% at ×0.1 scale |
+
+Both return identical values. If these are SoH:
+- `0x1E1C` may be "current SoH"
+- `0x1E1E` may be "nominal/new capacity reference"
+
+**Verification needed:** Read again after a different drive cycle. Real SoH should remain stable or drift slowly (fraction of a percent per month). If it fluctuates significantly, these are something else.
+
+**Note:** 86% SoH is lower than the 95-96% we initially assumed from the (incorrect) 0x028C interpretation. Cross-reference with a Porsche dealer report would be definitive.
+
+#### Cell voltage array — DID 0x0667 (396 bytes)
+
+The largest responding DID. Structured as 198 × uint16 BE values, all prefixed with `0x01XX`:
+
+```
+01 89 01 6e 01 4e 01 41 01 2d 01 41 01 82 01 6e ...
+```
+
+Decoded as uint16 BE: values range `0x0119` (281) to `0x0196` (406). If these are cell voltages with `×10 mV` scale, that gives a range of **2810 mV to 4060 mV** — exactly the operating range of a Li-ion cell.
+
+The Performance Battery Plus has **396 cells in 33 modules (12 cells each)**. 198 values = half of 396, so this may be:
+- 198 cell pair averages, or
+- 198 cells from one half of the pack, or
+- 33 modules × 6 parameters each
+
+**Needs:** Read at low SoC vs high SoC to confirm voltage swing and identify which cells are the weakest (lowest voltage under load = highest internal resistance = degraded).
+
+#### Per-module status — DIDs 0x1821–0x1841 (33 × 3 bytes)
+
+33 ECUs each returning a 3-byte ASCII-looking code:
+
+```
+0x1821: 4E 4D 53  "NMS"
+0x1822: 4E 4F 54  "NOT"
+0x1823: 4D 4D 52  "MMR"
+0x1824: 4E 4E 53  "NNS"
+0x1825: 4F 4F 55  "OOU"
+...
+```
+
+33 entries = one per battery module. Letters cluster around `M/N/O` and `R/S/T/U` — likely state codes. Hypothesis:
+- First letter: cell group A status (N=normal, M=marginal, O=??)
+- Second letter: cell group B status
+- Third letter: module flag (S=standard, T=trickle charging, U=unbalanced, R=resting)
+
+**Needs:** Correlate with 0x0407 module status and read across multiple states to map the code meanings.
+
+#### Per-module detailed data — DIDs 0x1850–0x1870 (33 × 43 bytes)
+
+33 entries of 43 bytes each. Each block has a structured pattern:
+
+```
+0x1850: 83 91 aa 39 1e 02 66 82 91 be 39 00 00 00 00 91 be 39 83 00 00 00 ...
+0x1851: 21 91 b4 39 1e 02 66 82 91 b4 39 00 00 00 00 91 a0 39 83 00 00 00 ...
+```
+
+The repeating value `0x39` (57) matches the current SoC — suggesting each module reports its own state contribution. The `0x91 XX 39` pattern appears to encode per-cell values within the module.
+
+**Structure hypothesis:**
+- Byte 0: module index (`0x83, 0x21, 0x53, 0x43...`)
+- Bytes 1-3: first cell value + flag
+- Repeats for all 12 cells in the module
+
+**This is the gold mine for cell-level diagnostics.** Decoding it gives per-cell voltages across all 396 cells.
+
+#### Other newly discovered DIDs
+
+| DID | Size | Value | Hypothesis |
+|-----|------|-------|------------|
+| `0x02E0` | 4B | `b9 1b 6f ce` → `86 0f 6f a3` | Changed between reads — live counter, may be SoH tracker |
+| `0x02F9` | 5B | `81 85 a2 67 6d` | Static — same as 0x02FA from default session |
+| `0x0600` | 14B | all zeros | Unused field |
+| `0x061E` | 11B | `T9J1010    ` | Internal part code |
+| `0x061F` | 11B | `T9J1100    ` | Internal part code |
+| `0x0620` | 11B | `TPNP020538 ` | Internal part/type code |
+| `0x0621` | 11B | `TPNP020539 ` | Internal part/type code |
+| `0x0622` | 11B | `T9J1011    ` | Internal part code |
+| `0x0806` | 2B | `0x0525` (1317) | Unknown counter |
+| `0x1801` | 2B | `0x1CD5` (7381) | Unknown — may be pack voltage in 0.1V |
+| `0x1802` | 3B | `0x024929` | Large counter (149,801) |
+| `0x1804` | 3B | `0x024AA6` | Large counter (150,182) — similar to 0x1802 |
+| `0x1808` | 2B | `0xFFFF` | Unused/max value |
+| `0x1809` | 2B | `0xFFFE` | Unused/max |
+| `0x180A` | 2B | `0x1CCC` (7372) | Similar magnitude to 0x1801 |
+| `0x180B` | 2B | `0x1CCF` (7373) | Similar magnitude |
+| `0x180C`–`0x180F` | 1B each | `4D, 4F, 4D, 4F` = "MOMO" | Status letters |
+| `0x1810` | 1B | `0x89` (137) | Hmm, matches full-charge SoC max |
+| `0x1811` | 194B | structured block | Large config/status record |
+| `0x1817` | 2B | `0x0101` | Flag pair |
+| `0x1818` | 2B | `0x1CE1` (7393) | Voltage-related counter |
+| `0x181B` | 2B | `0x1CDE` (7390) | Voltage-related counter |
+| `0x181C` | 1B | `0x4B` = 'K' | Letter code |
+| `0x181D` | 1B | `0x4C` = 'L' | Letter code |
+| `0x1900` | 4B | `0x00015E3D` (89,661) | Large counter — cycle count? km driven? |
+| `0x1901` | 4B | `0x000141B5` (82,357) | Large counter |
+| `0x192A` | 1B | `0x07` | Status |
+| `0x192B` | 1B | `0x38` (56) | Matches displayed SoC! |
+| `0x1E17`–`0x1E1A` | 3B each | voltage triplets | Per-cell or per-module summary |
+| `0x1E18` | 3B | `03 E8 04` | 1000 + flag byte — matches 0x040F pattern |
+| `0x1E1B` | 2B | `0x0229` (553) | Paired with 0x1E1C |
+| `0x1E1D` | 2B | `0x0229` (553) | Paired with 0x1E1E |
+| `0x1E26`–`0x1E28` | 3B each | `01 02 E3` | Three identical — charge/discharge limits? |
+| `0x1E2C` | 2B | `0x3930` ("90") | ASCII digits |
+| `0x1E2D` | 2B | `0x394B` ("9K") | ASCII code |
+| `0x1E33` | 3B | `91 D2 0D` | Same pattern as per-module data |
+| `0x1E34` | 3B | `91 96 0B` | Same pattern as per-module data |
+| `0x1E3B` | 2B | `0x1CD9` (7385) | Voltage-related counter |
+
+The cluster of values around `0x1CCC`–`0x1CE1` (7372–7393) is suspicious. If these are pack voltages with ×0.1V scale, that's 737–739V. But the car is currently at ~867V per DID 0x02BD. So maybe they're stored voltages from a different time (resting voltage? pre-charge?), or they use a different scale.
 
 ---
 
@@ -554,25 +677,103 @@ The Taycan gateway goes to sleep after a period of inactivity, even with the ign
 
 ---
 
-## 8. Open Questions
+## 8. Investigation Plan
 
-1. **DID 0x02BD sub-field boundaries** — need reads at different driving states (parked/driving/charging) to confirm voltage, current, and power byte positions and scaling factors.
+### Current state
+- **SoC:** fully decoded (DID 0x0286 with remap, fallback DID 0x028C as direct %)
+- **Pack voltage/current/power:** decoded from DID 0x02BD
+- **Temperature:** decoded from DID 0x02CB (min/max °C)
+- **Module balancing:** partial (DID 0x0407)
+- **SoH:** NOT confirmed — two candidates (0x1E1C, 0x1E1E = 86.0%)
+- **Cell-level data:** discovered but not decoded (0x0667, 0x1850–0x1870)
 
-2. **DID 0x02CB temperature** — strongly suspected to be battery min/max °C but needs a post-drive read where min != max to confirm.
+### Priority 1: Confirm the SoH DID
 
-3. **DID 0x0407 module status** — balancing hypothesis needs a mid-SoC read (e.g. 60%) to confirm that all values flip to `1` when balancing is not active.
+**Candidates:** 0x1E1C and 0x1E1E (both = 0x035C = 860 → 86.0% at ×0.1 scale)
 
-4. **Extended session DIDs** — the intermittent DIDs (0x02E1 energy counter, 0x02FA cell data) may be reliably accessible in extended diagnostic session (service `0x10 0x03`). Not yet tested.
+**Verification steps:**
+1. Read these DIDs across 3-5 scans at different SoC levels
+2. Real SoH should be rock-stable (within 0.5%) across all reads
+3. If they change with SoC, they are not SoH
+4. Compare 86% against Porsche Connect app or dealer report
 
-5. **Cell-level voltage data** — the BECM almost certainly has per-cell or per-module voltage data, but it may be behind security access (service `0x27`) or only available in extended/programming sessions.
+**Alternative candidates to test if 0x1E1C/E aren't SoH:**
+- `0x1810` = 0x89 (137) — matches the SoC display max
+- `0x02E0` — 4-byte live value, could be a SoH tracking counter
+- Extended DID range 0x2000–0x4FFF not yet swept
 
-6. **Inverter telemetry** — the front/rear inverters (`0x407C`, `0x40B8`) likely have non-standard DIDs with motor RPM, torque, and power data that haven't been enumerated.
+### Priority 2: Decode cell-level data
 
-7. **Parallel request optimisation** — implementing pipelined requests (sending multiple DIDs before collecting responses) would cut scan time from ~25s to ~10s.
+**DID 0x0667 (396 bytes)** — the most likely cell voltage array
 
-8. **SoH scaling** — the 1:1 direct percentage appears correct (95–96% for a 2022 vehicle), but confirmation against an official Porsche dealer report would be definitive.
+Format: 198 × uint16 BE, all prefixed with `0x01XX`
+- Decoded range: 0x0119–0x0196 (281–406)
+- At `×10 mV` scale: 2810–4060 mV — matches Li-ion cell range
+- Performance Plus has 396 cells in 33 modules — 198 values = half, or 6 per module
 
-9. **DC charging telemetry** — all data captured so far was during AC charging. DC fast charging sessions may unlock different DID responses or higher-resolution data in the 0x02BD telemetry.
+**To decode:**
+1. Read at high SoC (>80%) and note the value distribution
+2. Read at low SoC (<30%) and note the swing
+3. Cells with smallest swing = weakest (highest internal resistance)
+4. Write a cell voltage heatmap visualisation
+
+**DIDs 0x1850–0x1870 (33 × 43 bytes)** — per-module detailed data
+
+Each block starts with a module index byte, then structured cell data. The repeating `0x91 XX 39 XX 02 66 82` pattern suggests encoded cell voltages with status flags.
+
+**To decode:**
+1. Line up the 33 blocks and identify which bytes change between modules
+2. Cross-reference byte positions with DID 0x0667 values
+3. Map the `0x39` (SoC) and `0x91` (flag) byte positions
+
+**DIDs 0x1821–0x1841 (33 × 3 bytes)** — per-module status codes
+
+ASCII letter triplets like "NMS", "NOT", "MMR". Each module has one entry.
+
+**To decode:**
+1. Correlate with module numbers from 0x0407
+2. Read when balancing is active vs inactive
+3. Letters likely represent cell states (Normal/Marginal/??, Standard/Trickle/Unbalanced/Resting)
+
+### Priority 3: Complete the DID sweep
+
+Ranges not yet swept on the BECM:
+- `0x2000–0x2FFF` — may contain more diagnostic data
+- `0x3000–0x3FFF` — may contain configuration
+- `0x4000–0x4FFF` — may contain tables or logs
+- `0x5000–0xEFFF` — high manufacturer range
+
+### Priority 4: Verify hypotheses at different states
+
+Each of these DIDs has a static hypothesis that needs confirmation:
+
+| DID | Hypothesis | Test condition |
+|-----|-----------|----------------|
+| `0x02BD` byte 4 | Sub-voltage or power | Read while driving (should swing) |
+| `0x02BD` byte 5 | Temperature ×0.5°C | Read after drive (should rise) |
+| `0x02CB` | Battery temp min/max | Read after drive (min ≠ max) |
+| `0x0407` | Module balancing | Read at mid-SoC (should all be 1) |
+| `0x0440` | Calibration data | Static — no test needed |
+
+### Priority 5: Other ECUs
+
+- **Front Inverter (0x407C):** enumerate manufacturer DID range for motor RPM, torque, temperature
+- **Rear Inverter (0x40B8):** same
+- **OBC (0x4044):** charge current limits, grid voltage, session duration
+- **DC-DC (0x40B7):** 12V bus voltage, current, efficiency
+- **HV Booster (0x40C7):** charge boost telemetry
+
+---
+
+## 9. Known unknowns
+
+1. **SoH location** — 0x1E1C is a strong candidate but needs verification. The value 86% is lower than expected.
+2. **DID 0x02BD byte 4** — changes with voltage, but encoding unclear
+3. **DID 0x02F9/0x02FA** — 5-byte cell data blocks, first byte `0x81` looks like a flag
+4. **DIDs 0x1900/0x1901** — 4-byte counters (89,661 and 82,357) — km driven? charge cycles? Wh counters?
+5. **Parallel request support** — would cut scan time from 25s to 10s
+6. **Security access** — service `0x27` has not been attempted; some DIDs may unlock only after security challenge
+7. **DC charging data** — all reads so far are AC charging only
 
 ---
 

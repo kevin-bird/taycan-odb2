@@ -9,7 +9,6 @@ let pollTimer = null;
 document.addEventListener("DOMContentLoaded", () => {
   loadLatestScan();
   loadHistory();
-  loadTrends();
   checkConnection();
 
   // Close modal on overlay click
@@ -96,7 +95,6 @@ function pollProgress() {
         // Reload everything
         loadLatestScan();
         loadHistory();
-        loadTrends();
         checkConnection();
       }
     } catch {
@@ -198,14 +196,29 @@ function renderSoH(pct) {
 function renderSoC(pct) {
   const el = document.getElementById("soc-value");
   const bar = document.getElementById("soc-bar");
+  const gaugeEl = document.getElementById("soc-gauge-value");
+  const gauge = document.getElementById("soc-gauge");
+  const circumference = 2 * Math.PI * 65;
 
   if (pct != null) {
     const display = Math.min(100, pct);
     el.textContent = `${display.toFixed(1)}%`;
     bar.style.width = `${display}%`;
+
+    // Large gauge
+    gaugeEl.textContent = Math.round(display);
+    const offset = circumference * (1 - display / 100);
+    gauge.style.strokeDashoffset = offset;
+
+    // Color: green > 50%, amber > 20%, red below
+    if (display >= 50) gauge.style.stroke = "var(--green)";
+    else if (display >= 20) gauge.style.stroke = "var(--amber)";
+    else gauge.style.stroke = "var(--red)";
   } else {
     el.textContent = "--%";
     bar.style.width = "0%";
+    gaugeEl.textContent = "--";
+    gauge.style.strokeDashoffset = circumference;
   }
 }
 

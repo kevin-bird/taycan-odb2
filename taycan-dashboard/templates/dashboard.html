@@ -806,10 +806,22 @@ body {
       </div>
     </div>
 
-    <!-- SoH Trend -->
-    <div class="card trend-card">
-      <div class="card-title">SoH Trend</div>
-      <canvas id="trend-chart"></canvas>
+    <!-- SoC Gauge -->
+    <div class="card soh-card">
+      <div class="card-title">State of Charge</div>
+      <div class="gauge-container">
+        <svg class="gauge-svg" viewBox="0 0 160 160">
+          <circle class="gauge-bg" cx="80" cy="80" r="65"/>
+          <circle class="gauge-fill" id="soc-gauge" cx="80" cy="80" r="65"
+                  stroke-dasharray="408.4" stroke-dashoffset="408.4"
+                  style="stroke: var(--blue);"/>
+        </svg>
+        <div class="gauge-text">
+          <div class="gauge-value" id="soc-gauge-value">--</div>
+          <div class="gauge-unit">%</div>
+        </div>
+      </div>
+      <div class="gauge-label">Battery Charge</div>
     </div>
 
   </div>

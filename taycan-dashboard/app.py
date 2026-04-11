@@ -139,6 +139,16 @@ def api_trends():
     return jsonify(scanner.get_trend_data())
 
 
+@app.route("/api/fault-db")
+def api_fault_db():
+    """Fault code database, diagnostic tips, and recalls."""
+    return jsonify({
+        "fault_codes_count": len(scanner._fault_db),
+        "diagnostic_tips": scanner._diagnostic_tips,
+        "recalls": scanner._recalls,
+    })
+
+
 @app.route("/api/ecus")
 def api_ecus():
     """List registered ECUs."""

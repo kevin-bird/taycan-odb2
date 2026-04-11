@@ -1,0 +1,828 @@
+{
+  "meta": {
+    "vehicle": "Porsche Taycan (Y1A/Y1B/Y1C)",
+    "model_years": "2020-2025",
+    "last_updated": "2026-04-11",
+    "sources": [
+      "NHTSA TSB #2217 (Taycan HV Faults, June 2022)",
+      "NHTSA TSB OBC Overtemp (P31D200)",
+      "NHTSA Recall 24V-732 (HV Battery)",
+      "NHTSA Recall 23V-841 (Charging Cable)",
+      "TaycanForum.com",
+      "TaycanEVForum.com",
+      "Rennlist.com",
+      "JustAnswer.com",
+      "Field scan data"
+    ]
+  },
+  "ecus": {
+    "0x400B": { "name": "Tire Pressure (TPMS)", "part_id": null },
+    "0x400C": { "name": "Steering Column", "part_id": null },
+    "0x400E": { "name": "Body Control (BCM)", "part_id": null },
+    "0x4010": { "name": "Gateway", "part_id": "9035", "notes": "HV Coordinator. Most HV faults visible here." },
+    "0x4012": { "name": "Power Steering (EPS)", "part_id": null },
+    "0x4013": { "name": "Brakes (ESP)", "part_id": null },
+    "0x4014": { "name": "Instrument Cluster", "part_id": null },
+    "0x4015": { "name": "Airbag", "part_id": null },
+    "0x401C": { "name": "Sound Actuator", "part_id": null },
+    "0x4023": { "name": "Deck Lid", "part_id": null },
+    "0x4024": { "name": "Aerodynamics", "part_id": null },
+    "0x403B": { "name": "Brake Boost", "part_id": null },
+    "0x403F": { "name": "Door Rear Passenger", "part_id": null },
+    "0x4042": { "name": "Thermal Management", "part_id": null, "notes": "TME control unit" },
+    "0x4044": { "name": "On-Board Charger", "part_id": null, "notes": "OBC - 7.2kW or 22kW variant" },
+    "0x4046": { "name": "Climate Control", "part_id": null },
+    "0x404A": { "name": "Door Driver", "part_id": null },
+    "0x404B": { "name": "Door Passenger", "part_id": null },
+    "0x404C": { "name": "Seat Driver", "part_id": null },
+    "0x404D": { "name": "Seat Passenger", "part_id": null },
+    "0x404F": { "name": "Front Sensors (ADAS)", "part_id": null },
+    "0x4053": { "name": "Gear Selector", "part_id": null },
+    "0x4057": { "name": "Adaptive Cruise", "part_id": null },
+    "0x4064": { "name": "E-Sound", "part_id": null },
+    "0x4067": { "name": "Telematics (TCU)", "part_id": null },
+    "0x406F": { "name": "BOSE Audio", "part_id": null },
+    "0x4073": { "name": "Infotainment (PCM)", "part_id": null, "notes": "Central computer" },
+    "0x4076": { "name": "Powertrain (VCU)", "part_id": null },
+    "0x407B": { "name": "Battery (BECM)", "part_id": null, "notes": "HV Battery management" },
+    "0x407C": { "name": "Front Inverter", "part_id": null, "notes": "Front power electronics" },
+    "0x4080": { "name": "Air Suspension", "part_id": null },
+    "0x4086": { "name": "OTA Update", "part_id": null },
+    "0x408B": { "name": "Comfort Module", "part_id": null },
+    "0x4096": { "name": "Light Left", "part_id": null },
+    "0x4097": { "name": "Light Right", "part_id": null },
+    "0x40A5": { "name": "Wireless Charger", "part_id": null, "notes": "Phone wireless charging pad" },
+    "0x40B7": { "name": "DC-DC Converter", "part_id": null },
+    "0x40B8": { "name": "Rear Inverter", "part_id": null, "notes": "Rear power electronics" },
+    "0x40C7": { "name": "HV Booster", "part_id": null },
+    "0x40F1": { "name": "Airbag (secondary)", "part_id": null }
+  },
+  "fault_codes": {
+    "U112300": {
+      "description": "Data bus - fault value received",
+      "ecu": "Gateway",
+      "system": "HV System",
+      "severity": "varies",
+      "source": "NHTSA TSB #2217",
+      "notes": "Over 60 sub-faults. Full DTC sub-fault required for diagnosis.",
+      "sub_faults": {
+        "91000F": { "description": "DCDC Converter - No Component Function", "system": "DC-DC Converter", "severity": "high" },
+        "FF0006": { "description": "Operating Mode Error - HV Battery", "system": "HV Battery", "severity": "high" },
+        "FF0008": { "description": "No Component Function - HV Battery (BMS not functioning)", "system": "HV Battery", "severity": "critical" },
+        "FF0009": { "description": "Power Limitation - HV Battery", "system": "HV Battery", "severity": "medium" },
+        "FF000A": { "description": "Service Disconnect - HV Battery", "system": "HV Battery", "severity": "info" },
+        "FF000B": { "description": "Interlock (HVIL/Pilot line) - HV Battery", "system": "HV Battery", "severity": "high" },
+        "FF000C": { "description": "Fault 2 Isolation (insulation resistance) - HV Battery", "system": "HV Battery", "severity": "critical" },
+        "FF000D": { "description": "Fault 1 Isolation (insulation resistance) - HV Battery", "system": "HV Battery", "severity": "critical" },
+        "FF0012": { "description": "Operating Mode Error - DCDC Converter", "system": "DC-DC Converter", "severity": "high" },
+        "FF0014": { "description": "No Component Function - DCDC Converter", "system": "DC-DC Converter", "severity": "high" },
+        "FF001A": { "description": "Operating Mode Error - On Board Charger", "system": "OBC", "severity": "high" },
+        "FF001C": { "description": "No Component Function - On Board Charger", "system": "OBC", "severity": "high" },
+        "FF001D": { "description": "Interlock (HVIL/Pilot line) - On Board Charger", "system": "OBC", "severity": "high" },
+        "FF0025": { "description": "No Component Function - Drive DME", "system": "Powertrain", "severity": "high" },
+        "FF0026": { "description": "No Component Function - EM DME", "system": "Powertrain", "severity": "high" },
+        "FF0027": { "description": "Interlock (HVIL/Pilot line) - EM DME", "system": "Powertrain", "severity": "high" },
+        "FF0028": { "description": "Section Mode - EM DME", "system": "Powertrain", "severity": "medium" },
+        "FF0029": { "description": "Cutoff Operation Strategy - EM DME", "system": "Powertrain", "severity": "medium" },
+        "FF002A": { "description": "Interlock (HVIL/Pilot line) - Rear Power Electronics", "system": "Rear Inverter", "severity": "high" },
+        "FF002B": { "description": "Discharging Defect - Rear Power Electronics", "system": "Rear Inverter", "severity": "critical" },
+        "FF0033": { "description": "Error - HV Heater", "system": "Thermal", "severity": "medium" },
+        "FF0034": { "description": "Interlock (HVIL/Pilot line) - HV Heater", "system": "Thermal", "severity": "high" },
+        "FF0035": { "description": "Internal Failure - Airbag Deactivated HV", "system": "Safety", "severity": "critical" },
+        "FF0038": { "description": "Airbag Crash Type - Small", "system": "Safety", "severity": "critical" },
+        "FF0039": { "description": "Airbag Crash Type - Heavy", "system": "Safety", "severity": "critical" },
+        "FF003B": { "description": "Airbag Crash Type History - Small", "system": "Safety", "severity": "high" },
+        "FF003C": { "description": "Total Free Voltage", "system": "HV System", "severity": "high" },
+        "FF003F": { "description": "Error - HV Compressor", "system": "Thermal", "severity": "medium" },
+        "FF0040": { "description": "Interlock (HVIL/Pilot line) - HV Compressor", "system": "Thermal", "severity": "high" },
+        "FF0041": { "description": "Operating Mode Error - HV Heater", "system": "Thermal", "severity": "medium" },
+        "FF0042": { "description": "Operating Mode Error - HV Compressor", "system": "Thermal", "severity": "medium" },
+        "FF0043": { "description": "UCell_UL - HV Battery (cell undervoltage warning)", "system": "HV Battery", "severity": "critical" },
+        "FF0044": { "description": "UCell_UL_Failure - HV Battery (cell undervoltage failure - triggers Emergency Off)", "system": "HV Battery", "severity": "critical" },
+        "FF0049": { "description": "HV Battery Voltage DC Link2 Failure", "system": "HV Battery", "severity": "critical" },
+        "FF0051": { "description": "Voltage Off Failure - HV Booster", "system": "HV Booster", "severity": "high" },
+        "FF0054": { "description": "Operating Mode Error - HV Booster", "system": "HV Booster", "severity": "medium" },
+        "FF0056": { "description": "No Component Function - HV Booster", "system": "HV Booster", "severity": "high" },
+        "FF0057": { "description": "Interlock (HVIL/Pilot line) - HV Booster", "system": "HV Booster", "severity": "high" },
+        "FF0058": { "description": "Actual Voltage HV Failure - HV Booster", "system": "HV Booster", "severity": "critical" },
+        "FF0062": { "description": "No Voltage HV - HV Compressor", "system": "Thermal", "severity": "high" },
+        "FF0063": { "description": "No Voltage HV - HV Heater", "system": "Thermal", "severity": "high" },
+        "FF0064": { "description": "No Component Function - Rear Power Electronics", "system": "Rear Inverter", "severity": "high" },
+        "FF006A": { "description": "HV Charging Management (OBC) Actual Voltage Failure", "system": "OBC", "severity": "high" },
+        "FF006F": { "description": "HV Battery Voltage DC Link Failure", "system": "HV Battery", "severity": "critical" },
+        "FF0073": { "description": "DCDC Converter Actual Voltage HV Failure Value", "system": "DC-DC Converter", "severity": "high" },
+        "FF0074": { "description": "Voltage Off Failure - HV Battery", "system": "HV Battery", "severity": "critical" },
+        "FF0075": { "description": "Voltage Off Failure - On Board Charger", "system": "OBC", "severity": "high" },
+        "FF0076": { "description": "Voltage Off Failure - Rear Power Electronics", "system": "Rear Inverter", "severity": "high" },
+        "FF0078": { "description": "AC Phase Breakoff - Rear Power Electronics", "system": "Rear Inverter", "severity": "critical" },
+        "FF0086": { "description": "Rear Power Electronics Actual Voltage Failure", "system": "Rear Inverter", "severity": "high" },
+        "FF008B": { "description": "No Component Function - Front Power Electronics", "system": "Front Inverter", "severity": "high" },
+        "FF008C": { "description": "Voltage Off Failure - Front Power Electronics", "system": "Front Inverter", "severity": "high" },
+        "FF008E": { "description": "Front Power Electronics Actual Voltage Failure", "system": "Front Inverter", "severity": "high" },
+        "FF014D": { "description": "Interlock (HVIL/Pilot line) - DCDC Converter", "system": "DC-DC Converter", "severity": "high" },
+        "FF0157": { "description": "Discharging Defect - DCDC Converter", "system": "DC-DC Converter", "severity": "critical" },
+        "FF0160": { "description": "AC Phase Breakoff - Front Power Electronics", "system": "Front Inverter", "severity": "critical" },
+        "FF0161": { "description": "Interlock (HVIL/Pilot line) - Front Power Electronics", "system": "Front Inverter", "severity": "high" },
+        "FF0168": { "description": "Discharging Defect - Front Power Electronics", "system": "Front Inverter", "severity": "critical" },
+        "FF0200": { "description": "Discharging Defect - Front Power Electronics (alt)", "system": "Front Inverter", "severity": "critical" }
+      }
+    },
+    "U112200": {
+      "description": "Data bus - implausible message received",
+      "ecu": "Gateway",
+      "system": "HV System",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "notes": "Message failure family. Also stored as informational notice in OBC.",
+      "sub_faults": {
+        "FF0037": { "description": "Airbag Message Failure", "system": "Safety", "severity": "critical" },
+        "FF0046": { "description": "Message Failure - HV Battery 30", "system": "HV Battery", "severity": "high" },
+        "FF004B": { "description": "Message Failure - HV Battery 14", "system": "HV Battery", "severity": "high" },
+        "FF0053": { "description": "Message Failure - HV Booster", "system": "HV Booster", "severity": "high" },
+        "FF008A": { "description": "Message Failure - Front Power Electronics HYB11", "system": "Front Inverter", "severity": "high" },
+        "FF0165": { "description": "Message Failure - Front Power Electronics HYB14", "system": "Front Inverter", "severity": "high" }
+      }
+    },
+    "U112100": {
+      "description": "Data bus - missing message",
+      "ecu": "Gateway",
+      "system": "HV System",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "notes": "Timeout family. Also stored as informational notice in OBC.",
+      "sub_faults": {
+        "FF0036": { "description": "Airbag Timeout", "system": "Safety", "severity": "high" },
+        "FF0047": { "description": "Timeout Error - HV Battery 30", "system": "HV Battery", "severity": "high" },
+        "FF004A": { "description": "Timeout Error - HV Battery 14", "system": "HV Battery", "severity": "high" },
+        "FF0052": { "description": "Timeout Error - HV Booster", "system": "HV Booster", "severity": "high" },
+        "FF0089": { "description": "Timeout Error - Front Power Electronics HYB11", "system": "Front Inverter", "severity": "high" },
+        "FF0164": { "description": "Timeout Error - Front Power Electronics HYB14", "system": "Front Inverter", "severity": "high" }
+      }
+    },
+    "U13EA00": {
+      "description": "High Voltage System Locked",
+      "ecu": "Gateway",
+      "system": "HV System",
+      "severity": "critical",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF0099": { "description": "High Voltage System Locked", "system": "HV System", "severity": "critical" }
+      }
+    },
+    "U059900": {
+      "description": "DCDC Converter message failure",
+      "ecu": "Gateway",
+      "system": "DC-DC Converter",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF0011": { "description": "Message Failure - DCDC Converter 03", "system": "DC-DC Converter", "severity": "high" },
+        "FF006D": { "description": "Message Failure - DCDC Converter 01", "system": "DC-DC Converter", "severity": "high" }
+      }
+    },
+    "U049C00": {
+      "description": "On Board Charger message failure",
+      "ecu": "Gateway",
+      "system": "OBC",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF0019": { "description": "Message Failure - On Board Charger", "system": "OBC", "severity": "high" },
+        "FF0068": { "description": "Message Failure - HV Charging Management (OBC) 03", "system": "OBC", "severity": "high" },
+        "FF0097": { "description": "Message Failure - HV Charging Management (OBC) 04", "system": "OBC", "severity": "high" }
+      }
+    },
+    "U045600": {
+      "description": "Thermal Management message failure",
+      "ecu": "Gateway",
+      "system": "Thermal",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "910058": { "description": "TME (Thermal Management) Message Failure", "system": "Thermal", "severity": "high" },
+        "FF0031": { "description": "TME (Thermal Management) Message Failure", "system": "Thermal", "severity": "high" }
+      }
+    },
+    "U041300": {
+      "description": "HV Battery message failure / implausible signal",
+      "ecu": "Gateway",
+      "system": "HV Battery",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "notes": "Can be caused by charge port disconnection, wiring damage, or sensor fault.",
+      "sub_faults": {
+        "910050": { "description": "HV Battery 07 Message Failure", "system": "HV Battery", "severity": "high" },
+        "910052": { "description": "HV Battery 09 Message Failure", "system": "HV Battery", "severity": "high" },
+        "910054": { "description": "HV Battery 10 Message Failure", "system": "HV Battery", "severity": "high" },
+        "91004E": { "description": "HV Battery 02 Message Failure", "system": "HV Battery", "severity": "high" },
+        "FF0005": { "description": "Message Failure - HV Battery 04", "system": "HV Battery", "severity": "high" },
+        "FF0070": { "description": "Message Failure - HV Battery 01", "system": "HV Battery", "severity": "high" }
+      }
+    },
+    "U041100": {
+      "description": "Rear Power Electronics message failure",
+      "ecu": "Gateway",
+      "system": "Rear Inverter",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF0066": { "description": "Message Failure - Rear Power Electronics HYB11", "system": "Rear Inverter", "severity": "high" },
+        "FF0162": { "description": "Message Failure - Rear Power Electronics HYB14", "system": "Rear Inverter", "severity": "high" }
+      }
+    },
+    "U040100": {
+      "description": "DME message failure",
+      "ecu": "Gateway",
+      "system": "Powertrain",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "910056": { "description": "DME 14 Message Failure", "system": "Powertrain", "severity": "high" },
+        "91005A": { "description": "DME Message Failure", "system": "Powertrain", "severity": "high" },
+        "FF0023": { "description": "Message Failure - DME", "system": "Powertrain", "severity": "high" }
+      }
+    },
+    "U029800": {
+      "description": "DCDC Converter timeout error",
+      "ecu": "Gateway",
+      "system": "DC-DC Converter",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF0010": { "description": "Timeout Error - DCDC Converter 03", "system": "DC-DC Converter", "severity": "high" },
+        "FF006E": { "description": "Timeout Error - DCDC Converter 01", "system": "DC-DC Converter", "severity": "high" }
+      }
+    },
+    "U019B00": {
+      "description": "On Board Charger timeout error",
+      "ecu": "Gateway",
+      "system": "OBC",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF0018": { "description": "Timeout Error - On Board Charger", "system": "OBC", "severity": "high" },
+        "FF0069": { "description": "Timeout Error - HV Charging Management (OBC)", "system": "OBC", "severity": "high" },
+        "FF0098": { "description": "Timeout Error - HV Charging Management (OBC) 04", "system": "OBC", "severity": "high" }
+      }
+    },
+    "U011600": {
+      "description": "Thermal Management timeout",
+      "ecu": "Gateway",
+      "system": "Thermal",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "910059": { "description": "TME (Thermal Management) 01 Timeout", "system": "Thermal", "severity": "high" },
+        "FF0030": { "description": "Timeout - TME (Thermal Management)", "system": "Thermal", "severity": "high" }
+      }
+    },
+    "U011200": {
+      "description": "HV Battery timeout error",
+      "ecu": "Gateway",
+      "system": "HV Battery",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "910051": { "description": "HV Battery 07 Timeout", "system": "HV Battery", "severity": "high" },
+        "910053": { "description": "HV Battery 09 Timeout", "system": "HV Battery", "severity": "high" },
+        "910055": { "description": "HV Battery 10 Timeout", "system": "HV Battery", "severity": "high" },
+        "91004F": { "description": "HV Battery 02 Timeout", "system": "HV Battery", "severity": "high" },
+        "FF0004": { "description": "Timeout Error - HV Battery 04", "system": "HV Battery", "severity": "high" },
+        "FF0071": { "description": "Timeout Error - HV Battery 01", "system": "HV Battery", "severity": "high" }
+      }
+    },
+    "U011000": {
+      "description": "Rear Power Electronics timeout",
+      "ecu": "Gateway",
+      "system": "Rear Inverter",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF0067": { "description": "Timeout Error - Rear Power Electronics HYB11", "system": "Rear Inverter", "severity": "high" },
+        "FF0163": { "description": "Timeout Error - Rear Power Electronics HYB14", "system": "Rear Inverter", "severity": "high" }
+      }
+    },
+    "U010000": {
+      "description": "DME timeout error",
+      "ecu": "Gateway",
+      "system": "Powertrain",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "910057": { "description": "DME 14 Timeout", "system": "Powertrain", "severity": "high" },
+        "91005B": { "description": "DME 01 Timeout", "system": "Powertrain", "severity": "high" },
+        "FF0022": { "description": "Timeout Error - DME", "system": "Powertrain", "severity": "high" }
+      }
+    },
+    "C129AF0": {
+      "description": "Front Power Electronics initialization failure",
+      "ecu": "Gateway",
+      "system": "Front Inverter",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF0087": { "description": "Initialization Failure - Front Power Electronics", "system": "Front Inverter", "severity": "high" },
+        "FF0088": { "description": "Initialization Failure Voltage Off - Front Power Electronics", "system": "Front Inverter", "severity": "high" },
+        "FF008D": { "description": "Front PE Actual Voltage Initialization Failure", "system": "Front Inverter", "severity": "high" }
+      }
+    },
+    "C1220F0": {
+      "description": "Deep Discharge Protection - HV Battery",
+      "ecu": "Gateway",
+      "system": "HV Battery",
+      "severity": "critical",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF0061": { "description": "Deep Discharge Protection - HV Battery", "system": "HV Battery", "severity": "critical" }
+      }
+    },
+    "C11C5F5": {
+      "description": "Voltage difference failure - HV charging network vs battery",
+      "ecu": "Gateway",
+      "system": "OBC",
+      "severity": "critical",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF009D": { "description": "Failure Wire 5 - Invalid voltage difference between HV charging network and HV battery voltage", "system": "OBC", "severity": "critical" }
+      }
+    },
+    "C11C5F3": {
+      "description": "Voltage difference failure - Front PE vs battery",
+      "ecu": "Gateway",
+      "system": "Front Inverter",
+      "severity": "critical",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF009B": { "description": "Failure Wire 3 - Invalid voltage difference between Front Power Electronics and HV battery voltage", "system": "Front Inverter", "severity": "critical" }
+      }
+    },
+    "C11C5F2": {
+      "description": "Voltage difference failure - DCDC vs battery",
+      "ecu": "Gateway",
+      "system": "DC-DC Converter",
+      "severity": "critical",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF0060": { "description": "Failure Wire 2 - Invalid voltage difference between DCDC converter and HV battery voltage", "system": "DC-DC Converter", "severity": "critical" }
+      }
+    },
+    "C11C5F1": {
+      "description": "Voltage difference failure - Rear PE vs battery",
+      "ecu": "Gateway",
+      "system": "Rear Inverter",
+      "severity": "critical",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF003D": { "description": "Failure Wire 1 - Invalid voltage difference between Rear Power Electronics and HV battery voltage", "system": "Rear Inverter", "severity": "critical" }
+      }
+    },
+    "C11C5F0": {
+      "description": "Airbag crash history",
+      "ecu": "Gateway",
+      "system": "Safety",
+      "severity": "critical",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF003A": { "description": "Airbag Crash History Type Heavy", "system": "Safety", "severity": "critical" }
+      }
+    },
+    "C11BAF0": {
+      "description": "HV Battery initialization failure",
+      "ecu": "Gateway",
+      "system": "HV Battery",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF0001": { "description": "Initialization Failure Actual State - HV Battery", "system": "HV Battery", "severity": "high" },
+        "FF0002": { "description": "Initialization Failure - HV Battery", "system": "HV Battery", "severity": "high" },
+        "FF0003": { "description": "Initialization Failure Voltage Off - HV Battery", "system": "HV Battery", "severity": "high" },
+        "FF0007": { "description": "Operating Mode Failure - HV Battery", "system": "HV Battery", "severity": "high" },
+        "FF0045": { "description": "Initialization Failure Cell Overvoltage - HV Battery", "system": "HV Battery", "severity": "critical" },
+        "FF0048": { "description": "Initialization Failure Voltage DC Link2", "system": "HV Battery", "severity": "high" },
+        "FF0072": { "description": "Initialization Failure Voltage DC Link", "system": "HV Battery", "severity": "high" }
+      }
+    },
+    "C11B9F0": {
+      "description": "HV Heater / Compressor initialization failure",
+      "ecu": "Gateway",
+      "system": "Thermal",
+      "severity": "medium",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF002C": { "description": "Actual Mode - HV Heater", "system": "Thermal", "severity": "medium" },
+        "FF002D": { "description": "Internal Failure State - HV Heater", "system": "Thermal", "severity": "high" },
+        "FF002E": { "description": "Actual Mode - HV Compressor", "system": "Thermal", "severity": "medium" },
+        "FF002F": { "description": "Internal Failure State - HV Compressor", "system": "Thermal", "severity": "high" },
+        "FF0032": { "description": "Operating Mode Failure - HV Heater", "system": "Thermal", "severity": "medium" },
+        "FF003E": { "description": "Failure Operating Mode - HV Compressor", "system": "Thermal", "severity": "medium" }
+      }
+    },
+    "C11B8F0": {
+      "description": "On Board Charger initialization failure",
+      "ecu": "Gateway",
+      "system": "OBC",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF0015": { "description": "Initialization Failure Actual State - On Board Charger", "system": "OBC", "severity": "high" },
+        "FF0016": { "description": "Initialization Failure - On Board Charger", "system": "OBC", "severity": "high" },
+        "FF0017": { "description": "Initialization Failure Voltage Off - On Board Charger", "system": "OBC", "severity": "high" },
+        "FF001B": { "description": "Operating Mode Failure - On Board Charger", "system": "OBC", "severity": "high" },
+        "FF006B": { "description": "Initialization Failure Actual Voltage HV - On Board Charger", "system": "OBC", "severity": "high" }
+      }
+    },
+    "C11B7F0": {
+      "description": "DCDC / Rear PE initialization failure",
+      "ecu": "Gateway",
+      "system": "DC-DC Converter",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF000E": { "description": "Initialization Failure Actual State - DCDC Converter", "system": "DC-DC Converter", "severity": "high" },
+        "FF000F": { "description": "Initialization Failure - DCDC Converter", "system": "DC-DC Converter", "severity": "high" },
+        "FF0013": { "description": "Operating Mode Failure - DCDC Converter", "system": "DC-DC Converter", "severity": "high" },
+        "FF0065": { "description": "Initialization Failure Voltage Off - Rear Power Electronics", "system": "Rear Inverter", "severity": "high" },
+        "FF006C": { "description": "Initialization Failure Actual Voltage - DCDC Converter", "system": "DC-DC Converter", "severity": "high" },
+        "FF0077": { "description": "Initialization Failure - Rear Power Electronics", "system": "Rear Inverter", "severity": "high" },
+        "FF0085": { "description": "Rear PE Actual Voltage Initialization Failure", "system": "Rear Inverter", "severity": "high" }
+      }
+    },
+    "C113AF3": {
+      "description": "HV Booster initialization failure",
+      "ecu": "Gateway",
+      "system": "HV Booster",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF004D": { "description": "Initialization Failure - HV Booster", "system": "HV Booster", "severity": "high" },
+        "FF004E": { "description": "Initialization Failure Actual Voltage HV - HV Booster", "system": "HV Booster", "severity": "high" },
+        "FF004F": { "description": "Initialization Failure Voltage Off - HV Booster", "system": "HV Booster", "severity": "high" }
+      }
+    },
+    "C113AF0": {
+      "description": "HV Booster operating failure",
+      "ecu": "Gateway",
+      "system": "HV Booster",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF004C": { "description": "Initialization Failure Actual State - HV Booster", "system": "HV Booster", "severity": "high" },
+        "FF0055": { "description": "Operating Mode Failure - HV Booster", "system": "HV Booster", "severity": "high" }
+      }
+    },
+    "B106DF1": {
+      "description": "DME initialization / operating failure",
+      "ecu": "Gateway",
+      "system": "Powertrain",
+      "severity": "high",
+      "source": "NHTSA TSB #2217",
+      "sub_faults": {
+        "FF001E": { "description": "Initialization Failure Actual State - DME", "system": "Powertrain", "severity": "high" },
+        "FF001F": { "description": "Initialization Failure - DME", "system": "Powertrain", "severity": "high" },
+        "FF0020": { "description": "Initialization Failure Drive Status (DME)", "system": "Powertrain", "severity": "high" },
+        "FF0021": { "description": "Initialization Failure Engine DME", "system": "Powertrain", "severity": "high" },
+        "FF0024": { "description": "Operating Status Error - DME", "system": "Powertrain", "severity": "high" }
+      }
+    },
+    "B182D16": {
+      "description": "Electric interior heater (HV-PTC) 800V electronics - voltage too low",
+      "ecu": "Thermal Management",
+      "system": "Thermal",
+      "severity": "low",
+      "source": "NHTSA TSB #2217",
+      "notes": "Appears OFTEN when HV system does not start. Rarely indicates a real issue. Focus on why HV system is not starting."
+    },
+    "B200000": {
+      "description": "OBC general informational notice",
+      "ecu": "On-Board Charger",
+      "system": "OBC",
+      "severity": "info",
+      "source": "NHTSA TSB #2217",
+      "notes": "Commonly stored in fully functional vehicles. Priority 6 = notice only."
+    },
+    "B200FF9": {
+      "description": "Lane Change Assist calibration fault",
+      "ecu": "Lane Change Assist",
+      "system": "ADAS",
+      "severity": "low",
+      "source": "NHTSA TSB",
+      "notes": "Known intermittent fault. Self-heals in under 1 minute. Do NOT exchange parts."
+    },
+    "P31D200": {
+      "description": "Charging Socket - Overtemperature",
+      "ecu": "On-Board Charger",
+      "system": "OBC",
+      "severity": "high",
+      "source": "NHTSA TSB OBC Overtemp",
+      "notes": "Has dedicated TSB. Check charging cable and socket for damage/overheating."
+    },
+    "P1D2E00": {
+      "description": "Jammed claw clutch",
+      "ecu": "Transmission",
+      "system": "Powertrain",
+      "severity": "high",
+      "source": "NHTSA TSB",
+      "notes": "Yellow warning message. Has dedicated symptom-based workshop manual entry."
+    },
+    "052E01": {
+      "description": "ESP/brake system fault",
+      "ecu": "Brakes (ESP)",
+      "system": "Brakes",
+      "severity": "medium",
+      "source": "TaycanForum / JustAnswer",
+      "notes": "Reported after front-end disassembly/reassembly. Poorly documented. Porsche-internal hex code."
+    },
+    "A00058": {
+      "description": "Instrument cluster fault",
+      "ecu": "Instrument Cluster",
+      "system": "Instrument Cluster",
+      "severity": "medium",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code. Requires PIWIS for full decode. May relate to CAN bus issues."
+    },
+    "00607A": {
+      "description": "Gear selector fault",
+      "ecu": "Gear Selector",
+      "system": "Gear Selector",
+      "severity": "medium",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code. Requires PIWIS for full decode."
+    },
+    "100014": {
+      "description": "Battery management fault",
+      "ecu": "Battery (BECM)",
+      "system": "HV Battery",
+      "severity": "medium",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code. Common causes: BECM failure, HV battery assembly, wiring, contactor assembly."
+    },
+    "029800": {
+      "description": "ESP communication timeout (may reference DCDC in Gateway context)",
+      "ecu": "Brakes (ESP)",
+      "system": "Brakes",
+      "severity": "medium",
+      "source": "Field scan / NHTSA TSB #2217",
+      "notes": "In Gateway = DCDC Converter timeout. In ESP = CAN bus timeout."
+    },
+    "006200": {
+      "description": "EPS communication/calibration fault",
+      "ecu": "Power Steering (EPS)",
+      "system": "Steering",
+      "severity": "low",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "00048C": {
+      "description": "Adaptive cruise control fault",
+      "ecu": "Adaptive Cruise",
+      "system": "ADAS",
+      "severity": "low",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "020118": {
+      "description": "Right headlight/taillight fault",
+      "ecu": "Light Right",
+      "system": "Lighting",
+      "severity": "low",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "045018": {
+      "description": "ADAS front sensor fault",
+      "ecu": "Front Sensors (ADAS)",
+      "system": "ADAS",
+      "severity": "low",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "20506D": {
+      "description": "ADAS front sensor fault (secondary)",
+      "ecu": "Front Sensors (ADAS)",
+      "system": "ADAS",
+      "severity": "low",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "200620": {
+      "description": "OBC fault",
+      "ecu": "On-Board Charger",
+      "system": "OBC",
+      "severity": "medium",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code. Check if informational (Prio 6) or real fault (Prio 1-4) in freeze-frame."
+    },
+    "D12262": {
+      "description": "OBC fault",
+      "ecu": "On-Board Charger",
+      "system": "OBC",
+      "severity": "medium",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "320028": {
+      "description": "OBC fault",
+      "ecu": "On-Board Charger",
+      "system": "OBC",
+      "severity": "medium",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "321011": {
+      "description": "OBC fault",
+      "ecu": "On-Board Charger",
+      "system": "OBC",
+      "severity": "medium",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "F00109": {
+      "description": "OTA update fault",
+      "ecu": "OTA Update",
+      "system": "Software",
+      "severity": "medium",
+      "source": "Field scan",
+      "notes": "Likely incomplete/failed OTA. May need dealer reset. ARB6 OTA known to cause charging issues."
+    },
+    "F0000F": {
+      "description": "OTA update fault",
+      "ecu": "OTA Update",
+      "system": "Software",
+      "severity": "low",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "00011E": {
+      "description": "OTA update fault",
+      "ecu": "OTA Update",
+      "system": "Software",
+      "severity": "low",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "EA6100": {
+      "description": "OTA update fault",
+      "ecu": "OTA Update",
+      "system": "Software",
+      "severity": "low",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "F1001D": {
+      "description": "OTA update fault",
+      "ecu": "OTA Update",
+      "system": "Software",
+      "severity": "low",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "F10049": {
+      "description": "OTA update fault",
+      "ecu": "OTA Update",
+      "system": "Software",
+      "severity": "low",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "F10116": {
+      "description": "OTA update fault",
+      "ecu": "OTA Update",
+      "system": "Software",
+      "severity": "low",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "E00063": {
+      "description": "Instrument cluster fault",
+      "ecu": "Instrument Cluster",
+      "system": "Instrument Cluster",
+      "severity": "low",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "E00062": {
+      "description": "Instrument cluster fault",
+      "ecu": "Instrument Cluster",
+      "system": "Instrument Cluster",
+      "severity": "low",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "020267": {
+      "description": "Gateway fault",
+      "ecu": "Gateway",
+      "system": "Gateway",
+      "severity": "low",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "0202F5": {
+      "description": "Gateway fault",
+      "ecu": "Gateway",
+      "system": "Gateway",
+      "severity": "low",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "0202F6": {
+      "description": "Gateway fault",
+      "ecu": "Gateway",
+      "system": "Gateway",
+      "severity": "low",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "04020F": {
+      "description": "Gateway fault",
+      "ecu": "Gateway",
+      "system": "Gateway",
+      "severity": "low",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "820003": {
+      "description": "Gateway fault",
+      "ecu": "Gateway",
+      "system": "Gateway",
+      "severity": "low",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "FF000D": {
+      "description": "Gateway fault (may overlap with U112300-FF000D isolation resistance fault)",
+      "ecu": "Gateway",
+      "system": "Gateway",
+      "severity": "medium",
+      "source": "Field scan",
+      "notes": "In TSB #2217, FF000D as sub-fault of U112300 = Fault 1 Isolation (insulation resistance) - HV Battery."
+    },
+    "FF0063": {
+      "description": "Gateway fault (may overlap with U112300-FF0063 No Voltage HV Heater)",
+      "ecu": "Gateway",
+      "system": "Gateway",
+      "severity": "medium",
+      "source": "Field scan",
+      "notes": "In TSB #2217, FF0063 as sub-fault of U112300 = No Voltage HV - HV Heater."
+    },
+    "FF0110": {
+      "description": "Gateway fault",
+      "ecu": "Gateway",
+      "system": "Gateway",
+      "severity": "low",
+      "source": "Field scan",
+      "notes": "Porsche-internal hex code."
+    },
+    "00ABC8": {
+      "description": "Transmission fault (associated with P1D2E00)",
+      "ecu": "Transmission",
+      "system": "Powertrain",
+      "severity": "medium",
+      "source": "NHTSA TSB",
+      "notes": "Often appears alongside jammed claw clutch P1D2E00."
+    },
+    "U028400": {
+      "description": "Cooling air flap servo motor communication failure",
+      "ecu": "Gateway",
+      "system": "Thermal",
+      "severity": "medium",
+      "source": "JustAnswer",
+      "notes": "May be caused by bumper removal/cooling vent replacement. Check servo motors and wiring."
+    },
+    "U028500": {
+      "description": "Cooling air flap servo motor communication failure",
+      "ecu": "Gateway",
+      "system": "Thermal",
+      "severity": "medium",
+      "source": "JustAnswer",
+      "notes": "Same as U028400 - check wiring integrity after front-end work."
+    }
+  },
+  "obc_benign_codes": [
+    "B200000", "B1A88F3", "B1A8AF3", "P16EF00", "P1A3500",
+    "P31E900", "P31EA00", "P33EA00", "P33EB00", "P33EF00",
+    "P33F000", "U112100", "U112200", "U13AE00", "U14CA00",
+    "U15A900", "U15AB00", "U15AC00", "U15AD00", "U15AE00",
+    "U15AF00", "U15B100", "U15B300", "U15B500", "U15BF00",
+    "U15C900"
+  ],
+  "recalls": {
+    "APB5": { "nhtsa": "23V840", "description": "HV battery module short circuit risk (initial)", "years": "2021-2024", "remedy": "Battery module replacement/monitoring software" },
+    "ARA4": { "nhtsa": "24V215", "description": "HV battery module short circuit risk (supplement 1)", "years": "2021-2024", "remedy": "Data analytics + hardware analysis" },
+    "ARA5": { "nhtsa": "24V217", "description": "HV battery module short circuit risk (supplement 2)", "years": "2021-2024", "remedy": "Data analytics + hardware analysis" },
+    "ARB6": { "nhtsa": "24V732", "description": "HV battery short circuit - expanded recall, charge limit 80%", "years": "2020-2024", "remedy": "Advanced diagnostic software (Q1 2025). Interim: charge max 80%." },
+    "ARB7": { "nhtsa": "24V732", "description": "HV battery - monitoring, no anomalies currently", "years": "2020-2024", "remedy": "Monitoring. No charge restriction." },
+    "23V841": { "nhtsa": "23V841", "description": "Charging cable NEMA plug overheating", "years": "2020-2024", "remedy": "Replacement supply cable" }
+  },
+  "diagnostic_tips": [
+    { "id": 1, "category": "Thermal", "tip": "B182D16 (HV-PTC voltage too low) appears often when HV system fails to start but rarely indicates a real issue. Focus on why HV system is not starting." },
+    { "id": 2, "category": "Gateway", "tip": "Gateway (0x4010, Part ID 9035) is the HV Coordinator. Check Gateway faults first. Full FC + DTC title reveals root cause. Over 60 DTCs for U112300 alone." },
+    { "id": 3, "category": "Emergency Off", "tip": "Some HV faults trigger Emergency Off mode. Even after clearing all faults, Emergency Off may remain active. Reset via PIWIS: BMS > Drive Links > Resetting cell module deactivation." },
+    { "id": 4, "category": "12V Battery", "tip": "Use approved Deutronic supply (VAS 5908) for jump-start. Do NOT leave jump box connected with HV deactivated. Mishandled jump-starts cause erroneous cell overvoltage/undervoltage faults." },
+    { "id": 5, "category": "12V Battery", "tip": "If 12V battery can switch on ignition, it is likely not the underlying issue. Do not incorrectly associate HV errors with 12V battery." },
+    { "id": 6, "category": "Fault Priority", "tip": "Not all stored faults indicate failure. Priority 1-4 = real faults. Priority 6 (Hinweis) = informational notices. Check freeze-frame for priority level." },
+    { "id": 7, "category": "OBC", "tip": "Many OBC codes are informational notices stored in fully functional vehicles. See obc_benign_codes array for known benign codes." },
+    { "id": 8, "category": "OTA", "tip": "ARB6 OTA software update has caused charging irregularities. Dealer may need code clearing, HV shutdown, 12V reset to restore normal charging." },
+    { "id": 9, "category": "OBC", "tip": "Electrical system error > OBC failure > HV heater failure is a reported progression pattern. Monitor for escalation if OBC codes appear." },
+    { "id": 10, "category": "General", "tip": "A single root cause (12V discharge, OTA failure, CAN bus issue) can produce faults across 10+ ECUs simultaneously. Identify root cause before chasing individual codes." }
+  ]
+}

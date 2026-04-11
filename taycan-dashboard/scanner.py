@@ -16,6 +16,36 @@ import config
 
 
 SCANS_DIR = os.path.join(os.path.dirname(__file__), "scans")
+FAULT_CODES_PATH = os.path.join(os.path.dirname(__file__), "fault_codes.json")
+
+# Load fault code database
+_fault_db = {}
+_obc_benign = set()
+_diagnostic_tips = []
+_recalls = {}
+
+def _load_fault_db():
+    global _fault_db, _obc_benign, _diagnostic_tips, _recalls
+    try:
+        with open(FAULT_CODES_PATH) as f:
+            data = json.load(f)
+        _fault_db = data.get("fault_codes", {})
+        _obc_benign = set(data.get("obc_benign_codes", []))
+        _diagnostic_tips = data.get("diagnostic_tips", [])
+        _recalls = data.get("recalls", {})
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+
+_load_fault_db()
+
+
+def lookup_dtc(code: str) -> Optional[dict]:
+    """Look up a DTC code in the fault database."""
+    # Try exact match first, then uppercase, then with/without trailing zeros
+    for key in [code, code.upper(), code.rstrip("0") or code]:
+        if key in _fault_db:
+            return _fault_db[key]
+    return None
 
 
 def ensure_scans_dir():
@@ -178,8 +208,15 @@ def run_scan(gateway_ip: str = None,
                 elif did == 0xF18B:
                     ecu_result["mfg_date"] = config.decode_mfg_date(raw)
 
-            # Read DTCs
+            # Read DTCs and enrich with fault code descriptions
             dtcs = conn.read_dtcs(addr, 0xFF, config.DTC_TIMEOUT)
+            for dtc in dtcs:
+                info = lookup_dtc(dtc["code"])
+                if info:
+                    dtc["description"] = info.get("description", "")
+                    dtc["severity"] = info.get("severity", "")
+                    dtc["notes"] = info.get("notes", "")
+                    dtc["source"] = info.get("source", "")
             ecu_result["dtcs"] = dtcs
             fault_count = sum(1 for d in dtcs if d.get("is_fault"))
             if fault_count > 0:

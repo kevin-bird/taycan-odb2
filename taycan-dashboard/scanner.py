@@ -244,6 +244,18 @@ def run_scan(gateway_ip: str = None,
                         if raw is not None:
                             battery_raw[did] = raw
 
+                    # Cell voltage array (0x0667) — 396 bytes historical min/max
+                    raw = conn.read_did(addr, config.CELL_ARRAY_DID, 2.0)
+                    if raw is not None:
+                        battery_raw[config.CELL_ARRAY_DID] = raw
+
+                    # Retry intermittent DIDs in extended session
+                    for did in [0x02E1, 0x02FA]:
+                        if battery_raw.get(did) is None:
+                            raw = conn.read_did(addr, did, config.UDS_TIMEOUT)
+                            if raw is not None:
+                                battery_raw[did] = raw
+
                     # Module grid (0x1850-0x1870) — 33 per-module blocks
                     for did in config.MODULE_GRID_DIDS:
                         raw = conn.read_did(addr, did, config.UDS_TIMEOUT)

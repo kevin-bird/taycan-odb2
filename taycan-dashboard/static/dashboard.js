@@ -372,13 +372,13 @@ function showEcuDetail(ecu) {
           if (d.active) flags.push('<span class="active">ACTIVE</span>');
           if (d.confirmed) flags.push('<span class="confirmed">CONFIRMED</span>');
           if (d.pending) flags.push("PENDING");
-          const desc = d.description ? `<div style="color:var(--text);font-size:12px;margin-top:2px">${d.description}</div>` : "";
-          const notes = d.notes ? `<div style="color:var(--text-dim);font-size:11px;margin-top:1px">${d.notes}</div>` : "";
+          const desc = d.description ? `<div style="color:var(--text);font-size:14px;margin-top:3px">${d.description}</div>` : "";
+          const notes = d.notes ? `<div style="color:var(--text-dim);font-size:13px;margin-top:2px">${d.notes}</div>` : "";
           const sev = d.severity ? `<span class="flag ${d.severity === 'critical' ? 'active' : d.severity === 'high' ? 'confirmed' : 'pending'}" style="margin-left:6px">${d.severity.toUpperCase()}</span>` : "";
           return `<div class="dtc-item" style="padding:6px 0">
             <span class="dtc-code">${d.code}</span>${sev}
             <span class="dtc-flags">${flags.join(" ")}</span>
-            <span style="float:right;color:var(--text-dim);font-size:11px">${d.status_hex}</span>
+            <span style="float:right;color:var(--text-dim);font-size:13px">${d.status_hex}</span>
             ${desc}${notes}
           </div>`;
         })
@@ -423,7 +423,7 @@ function renderDtcSummary(ecus) {
           const desc = d.description ? ` — ${d.description}` : "";
           return `<div class="dtc-entry" style="flex-direction:column;gap:2px">
             <div>
-              <span class="code">${d.code}</span><span style="color:var(--text-dim);font-size:11px">${desc}</span>
+              <span class="code">${d.code}</span><span style="color:var(--text-dim);font-size:13px">${desc}</span>
               <span class="flags" style="float:right">${flags.join("")} <span style="color:var(--text-dim)">${d.status_hex}</span></span>
             </div>
           </div>`;

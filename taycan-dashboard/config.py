@@ -158,11 +158,14 @@ def decode_battery(raw_dids: dict[int, Optional[bytes]]) -> dict:
         displayed = (soc_raw[0] - 5) / 132.0 * 100.0
         result["soc_percent"] = round(max(0, min(100, displayed)), 1)
 
-    # SoH (0x028C): 1 byte, direct percentage
-    soh_raw = raw_dids.get(0x028C)
-    if soh_raw and len(soh_raw) >= 1:
-        result["soh_raw"] = soh_raw[0]
-        result["soh_percent"] = soh_raw[0]
+    # SoC display (0x028C): 1 byte, direct percentage (BMS remapped value)
+    # This is the display-ready SoC — use as fallback when 0x0286 doesn't respond
+    soc_display = raw_dids.get(0x028C)
+    if soc_display and len(soc_display) >= 1:
+        if result["soc_percent"] is None:
+            # 0x0286 didn't respond — use 0x028C as SoC
+            result["soc_raw"] = soc_display[0]
+            result["soc_percent"] = soc_display[0]
 
     # Charging status (0x02B2): 1=charging, 0=not
     charge_raw = raw_dids.get(0x02B2)

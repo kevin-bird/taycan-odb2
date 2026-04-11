@@ -144,11 +144,14 @@ def decode_battery(raw_dids: dict[int, Optional[bytes]]) -> dict:
         if raw is not None:
             result["raw_dids"][f"0x{did:04X}"] = raw.hex()
 
-    # SoC (0x0286): 1 byte, scale ×0.75
+    # SoC (0x0286): 1 byte, raw BMS value remapped to displayed %
+    # Raw range ~5 (0% displayed) to ~137 (100% displayed)
+    # Formula: displayed = (raw - 5) / 132 * 100, clipped to 0-100
     soc_raw = raw_dids.get(0x0286)
     if soc_raw and len(soc_raw) >= 1:
         result["soc_raw"] = soc_raw[0]
-        result["soc_percent"] = round(soc_raw[0] * 0.75, 2)
+        displayed = (soc_raw[0] - 5) / 132.0 * 100.0
+        result["soc_percent"] = round(max(0, min(100, displayed)), 1)
 
     # SoH (0x028C): 1 byte, direct percentage
     soh_raw = raw_dids.get(0x028C)

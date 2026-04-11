@@ -92,9 +92,11 @@ IDENTITY_DIDS = {
     0xF18C: "Serial Number",
     0xF190: "VIN",
     0xF191: "HW Part Number",
+    0xF1A3: "HW Version",
     0xF197: "System Name",
     0xF19E: "ASAM/ODX ID",
     0xF1AA: "Workshop ID",
+    0xF17C: "FAZIT",
 }
 
 # ─── Battery DIDs (BECM 0x407B) ──────────────────────────────────────────
@@ -132,6 +134,9 @@ def decode_battery(raw_dids: dict[int, Optional[bytes]]) -> dict:
         "soh_percent": None,
         "soh_raw": None,
         "charging": None,
+        "pack_voltage_v": None,
+        "pack_current_a": None,
+        "pack_power_kw": None,
         "temperature_min_c": None,
         "temperature_max_c": None,
         "pack_telemetry_hex": None,
@@ -170,10 +175,21 @@ def decode_battery(raw_dids: dict[int, Optional[bytes]]) -> dict:
         result["temperature_min_c"] = temp_raw[0]
         result["temperature_max_c"] = temp_raw[1]
 
-    # Pack telemetry (0x02BD): 10 bytes raw
+    # Pack telemetry (0x02BD): 10 bytes — decode voltage, current, power
+    # Bytes 0-1: charge current (×0.1A, signed)
+    # Bytes 2-3: pack voltage (×0.15V)
+    # Byte 5: internal temp (×0.5°C)
     telem_raw = raw_dids.get(0x02BD)
     if telem_raw:
         result["pack_telemetry_hex"] = telem_raw.hex()
+        if len(telem_raw) >= 4:
+            current_raw = int.from_bytes(telem_raw[0:2], "big", signed=True)
+            result["pack_current_a"] = round(current_raw * 0.1, 1)
+            voltage_raw = int.from_bytes(telem_raw[2:4], "big")
+            result["pack_voltage_v"] = round(voltage_raw * 0.15, 1)
+            if result["pack_voltage_v"] and result["pack_current_a"] is not None:
+                result["pack_power_kw"] = round(
+                    result["pack_voltage_v"] * result["pack_current_a"] / 1000, 1)
 
     # Module status (0x0407): 16 bytes = 8 × uint16 BE
     mod_status = raw_dids.get(0x0407)

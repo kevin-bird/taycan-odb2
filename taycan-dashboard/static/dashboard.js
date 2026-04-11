@@ -148,8 +148,9 @@ function renderScan(scan) {
   renderSoH(bat.soh_percent);
   renderSoC(bat.soc_percent);
   renderCharging(bat.charging);
+  renderVoltage(bat.pack_voltage_v);
+  renderPower(bat.pack_current_a, bat.pack_power_kw);
   renderTemp(bat.temperature_min_c, bat.temperature_max_c);
-  renderTelemetry(bat.pack_telemetry_hex);
   renderModuleStatus(bat.module_status, bat.module_data);
 
   // ECUs
@@ -225,13 +226,17 @@ function renderTemp(min, max) {
   }
 }
 
-function renderTelemetry(hex) {
-  const el = document.getElementById("telemetry-hex");
-  if (hex) {
-    // Format as spaced hex pairs
-    el.textContent = hex.match(/.{2}/g).join(" ");
+function renderVoltage(v) {
+  const el = document.getElementById("voltage-value");
+  el.textContent = v != null ? `${v.toFixed(1)} V` : "-- V";
+}
+
+function renderPower(current, power) {
+  const el = document.getElementById("power-value");
+  if (current != null && power != null) {
+    el.textContent = `${current.toFixed(1)} A / ${power.toFixed(1)} kW`;
   } else {
-    el.textContent = "--";
+    el.textContent = "-- A / -- kW";
   }
 }
 
@@ -342,10 +347,12 @@ function showEcuDetail(ecu) {
     ["SW Part Number", ecu.sw_number],
     ["SW Version", ecu.sw_version],
     ["HW Part Number", ecu.hw_number],
+    ["HW Version", ecu.hw_version],
     ["Serial Number", ecu.serial],
     ["VIN", ecu.vin],
     ["System Name", ecu.system_name],
     ["Workshop ID", ecu.workshop_id],
+    ["FAZIT", ecu.fazit],
     ["Mfg Date", ecu.mfg_date],
   ].filter(([, v]) => v);
 

@@ -123,10 +123,12 @@ def run_scan(gateway_ip: str = None,
                 "sw_number": None,
                 "sw_version": None,
                 "hw_number": None,
+                "hw_version": None,
                 "serial": None,
                 "vin": None,
                 "system_name": None,
                 "workshop_id": None,
+                "fazit": None,
                 "mfg_date": None,
                 "dtcs": [],
             }
@@ -167,8 +169,12 @@ def run_scan(gateway_ip: str = None,
                     ecu_result["system_name"] = text
                 elif did == 0xF19E:
                     ecu_result["asam_id"] = text
+                elif did == 0xF1A3:
+                    ecu_result["hw_version"] = text
                 elif did == 0xF1AA:
                     ecu_result["workshop_id"] = text
+                elif did == 0xF17C:
+                    ecu_result["fazit"] = text
                 elif did == 0xF18B:
                     ecu_result["mfg_date"] = config.decode_mfg_date(raw)
 

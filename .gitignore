@@ -9,6 +9,7 @@ venv/
 taycan-dashboard/scans/*.json
 discovered_ecus.json
 becm_did_dump*.txt
+FINDINGS.md
 
 # macOS
 .DS_Store

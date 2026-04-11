@@ -172,10 +172,13 @@ DCDC_DIDS = [
     0x15E2,  # Temperature candidate
 ]
 
-# HV Booster (0x40C7) DIDs — to be populated after sweep
+# HV Booster (0x40C7) DIDs
 HV_BOOSTER_DIDS = [
-    0x02BD,
-    0x02CB,
+    0x02BD,  # Pack telemetry
+    0x02CB,  # Temperature pair
+    0x15E2,  # Temperature candidate
+    0x1609,  # Voltage reading
+    0x160A,  # Voltage reading
 ]
 
 
@@ -445,6 +448,26 @@ def decode_powertrain(powertrain: dict) -> dict:
             obc["status_byte"] = status[0]
 
         result["obc"] = obc
+
+    # HV Booster
+    hv_raw = powertrain.get("hv_booster")
+    if hv_raw:
+        hv = {"raw_dids": {}}
+        for did, data in hv_raw.items():
+            if isinstance(data, bytes):
+                hv["raw_dids"][f"0x{did:04X}"] = data.hex()
+        # 0x02BD: pack telemetry
+        telem = hv_raw.get(0x02BD)
+        if telem and len(telem) >= 4:
+            current_raw = int.from_bytes(telem[0:2], "big", signed=True)
+            voltage_raw = int.from_bytes(telem[2:4], "big")
+            hv["pack_current_a"] = round(current_raw * 0.1, 1)
+            hv["pack_voltage_v"] = round(voltage_raw * 0.15, 1)
+        # 0x02CB: temperature
+        temp = hv_raw.get(0x02CB)
+        if temp and len(temp) >= 2:
+            hv["temperature_c"] = temp[0]
+        result["hv_booster"] = hv
 
     # DC-DC Converter
     dcdc_raw = powertrain.get("dcdc")

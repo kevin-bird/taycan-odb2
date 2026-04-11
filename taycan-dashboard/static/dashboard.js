@@ -291,7 +291,7 @@ function renderPowertrain(powertrain) {
     if (inv.pack_current_a != null)
       metrics.push(["Current", `${inv.pack_current_a}<span class="unit">A</span>`]);
     if (inv.motor_metric != null)
-      metrics.push(["Motor", `${inv.motor_metric}`]);
+      metrics.push(["0x028D", `${inv.motor_metric}`]);  // unknown scale
     cards.push(ptCard("Front Inverter", "0x407C", metrics, inv.firmware));
   }
 
@@ -304,7 +304,7 @@ function renderPowertrain(powertrain) {
     if (inv.pack_current_a != null)
       metrics.push(["Current", `${inv.pack_current_a}<span class="unit">A</span>`]);
     if (inv.motor_metric != null)
-      metrics.push(["Motor", `${inv.motor_metric}`]);
+      metrics.push(["0x028D", `${inv.motor_metric}`]);  // unknown scale
     cards.push(ptCard("Rear Inverter", "0x40B8", metrics, inv.firmware));
   }
 
@@ -335,6 +335,19 @@ function renderPowertrain(powertrain) {
     if (dc.temperature_c != null)
       metrics.push(["Temp", `${dc.temperature_c}<span class="unit">&deg;C</span>`]);
     cards.push(ptCard("DC-DC Converter", "0x40B7", metrics, null));
+  }
+
+  // HV Booster
+  if (powertrain.hv_booster) {
+    const hv = powertrain.hv_booster;
+    const metrics = [];
+    if (hv.pack_voltage_v != null)
+      metrics.push(["HV Bus", `${hv.pack_voltage_v}<span class="unit">V</span>`]);
+    if (hv.pack_current_a != null)
+      metrics.push(["Current", `${hv.pack_current_a}<span class="unit">A</span>`]);
+    if (hv.temperature_c != null)
+      metrics.push(["Temp", `${hv.temperature_c}<span class="unit">&deg;C</span>`]);
+    cards.push(ptCard("HV Booster", "0x40C7", metrics, null));
   }
 
   grid.innerHTML = cards.join("");

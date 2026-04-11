@@ -49,24 +49,33 @@ def lookup_dtc(code: str) -> Optional[dict]:
 
 
 def _read_powertrain_ecu(conn, addr: int) -> dict:
-    """Read the interesting DIDs for a powertrain ECU (inverter/OBC/DC-DC)."""
+    """
+    Read the interesting DIDs for a powertrain ECU (inverter/OBC/DC-DC/HV Booster).
+    Returns dict of {did_int: raw_bytes}. Never raises — returns {} on failure.
+    """
     if addr in (0x407C, 0x40B8):
         dids = config.INVERTER_DIDS
     elif addr == 0x4044:
         dids = config.OBC_DIDS
     elif addr == 0x40B7:
         dids = config.DCDC_DIDS
+    elif addr == 0x40C7:
+        dids = config.HV_BOOSTER_DIDS
     else:
         return {}
 
     raw_dids = {}
-    # Try extended session for better data
-    conn.change_session(addr, session=0x03, timeout=1.5)
-    for did in dids:
-        raw = conn.read_did(addr, did, timeout=0.8)
-        if raw is not None:
-            raw_dids[did] = raw
-    conn.change_session(addr, session=0x01, timeout=1.5)
+    try:
+        # Try extended session for better data; fall back to default if it fails
+        conn.change_session(addr, session=0x03, timeout=1.5)
+        for did in dids:
+            raw = conn.read_did(addr, did, timeout=0.8)
+            if raw is not None:
+                raw_dids[did] = raw
+        # Always return to default session, ignore result
+        conn.change_session(addr, session=0x01, timeout=1.5)
+    except Exception:
+        pass
     return raw_dids
 
 
@@ -290,18 +299,25 @@ def run_scan(gateway_ip: str = None,
 
                 result["battery"] = config.decode_battery(battery_raw)
 
-            # Powertrain ECU live telemetry (inverters, OBC, DC-DC)
-            if addr in (0x407C, 0x40B8, 0x4044, 0x40B7):
+            # Powertrain ECU live telemetry
+            # Decode each ECU's data immediately so we never hold bytes in result
+            POWERTRAIN_MAP = {
+                0x407C: "front_inverter",
+                0x40B8: "rear_inverter",
+                0x4044: "obc",
+                0x40B7: "dcdc",
+                0x40C7: "hv_booster",
+            }
+            if addr in POWERTRAIN_MAP:
+                if progress_callback:
+                    progress_callback(idx + 1, total,
+                                      f"Powertrain telemetry: {name}")
                 powertrain_raw = _read_powertrain_ecu(conn, addr)
                 if powertrain_raw:
                     if result["powertrain"] is None:
                         result["powertrain"] = {}
-                    key = {
-                        0x407C: "front_inverter",
-                        0x40B8: "rear_inverter",
-                        0x4044: "obc",
-                        0x40B7: "dcdc",
-                    }[addr]
+                    key = POWERTRAIN_MAP[addr]
+                    # Store raw bytes temporarily; decoded at end
                     result["powertrain"][key] = powertrain_raw
 
             result["ecus"].append(ecu_result)
@@ -310,9 +326,18 @@ def run_scan(gateway_ip: str = None,
         result["summary"]["ecus_with_dtcs"] = with_dtcs
         result["summary"]["total_dtcs"] = total_dtc_count
 
-        # Decode powertrain data
+        # Decode powertrain data — converts bytes to hex strings safe for JSON
         if result["powertrain"]:
             result["powertrain"] = config.decode_powertrain(result["powertrain"])
+
+    except Exception as e:
+        # Any unexpected error — convert any dangling bytes so JSON save works
+        result["error"] = str(e)
+        if result["powertrain"]:
+            try:
+                result["powertrain"] = config.decode_powertrain(result["powertrain"])
+            except Exception:
+                result["powertrain"] = None
 
     finally:
         conn.close()

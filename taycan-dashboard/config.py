@@ -277,18 +277,14 @@ def decode_battery(raw_dids: dict[int, Optional[bytes]]) -> dict:
         result["module_grid"] = grid
         result["cell_stats"] = compute_cell_stats(grid)
 
-    # SoH candidates (extended session)
+    # 0x1E1C / 0x1E1E: NOT SoH — confirmed volatile (varies 76-86%
+    # across scans at similar SoC). Likely temperature-adjusted available
+    # capacity or energy metric. Stored as raw for analysis only.
     for did in SOH_CANDIDATE_DIDS:
         raw = raw_dids.get(did)
         if raw and len(raw) >= 2:
             val = int.from_bytes(raw[:2], "big")
-            # Candidate: raw / 10 = percent (e.g. 0x035C = 860 → 86.0%)
-            soh_candidate = val / 10.0
-            if 50 <= soh_candidate <= 110:
-                # Tentatively use the first candidate
-                if result["soh_percent"] is None:
-                    result["soh_percent"] = soh_candidate
-                    result["soh_raw"] = val
+            result["raw_dids"][f"0x{did:04X}"] = raw.hex()
 
     return result
 

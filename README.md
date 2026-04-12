@@ -6,7 +6,7 @@ Open-source diagnostic tool for the Porsche Taycan (J1 / J1.1 platform). Connect
 
 ## What it does
 
-- **Battery health monitoring** — reads SoH, SoC, pack voltage, current, power, temperatures, module balancing status, and charging state directly from the BECM
+- **Battery monitoring** — reads SoC, pack voltage, current, power, temperatures, module balancing status, cell-level voltages (33 modules, 198 cell pairs with physical positions), and charging state directly from the BECM. SoH DID is under investigation.
 - **Full ECU scan** — probes all 42 ECUs for identification (SW/HW part numbers, versions, serial numbers, FAZIT, manufacturing dates) and fault codes
 - **Fault code lookup** — 69 known Taycan DTCs with descriptions, severity levels, and notes sourced from NHTSA TSBs, forums, and field data
 - **Smart DTC filtering** — separates real faults (active/pending/confirmed) from the ~2800 "test not completed" entries that VAG ECUs return
@@ -88,18 +88,32 @@ To access from another device on the same network, use your Mac's IP instead of 
 ## Dashboard features
 
 ### Battery panel
-- **SoH gauge** — large percentage gauge, color-coded (green > 90%, amber > 80%, red below)
-- **SoC bar** — remapped to match car's displayed percentage
+- **SoH gauge** — shows battery health percentage when available (SoH DID under investigation, currently shows --)
+- **SoC gauge** — large circular gauge with color coding, remapped to match car's displayed percentage
 - **Pack voltage** — live HV pack voltage (typically ~800V)
 - **Current / Power** — charge current (A) and power (kW)
 - **Temperature** — battery min/max in celsius
 - **Module status** — per-module balancing indicators
-- **SoH trend chart** — tracks degradation across all saved scans
+
+### HV system architecture diagram
+- SVG schematic showing all HV components and their connections
+- Color-coded buses: red = 800V HV, blue = 12V LV, green = Ethernet DoIP
+- Shows ECU addresses, external charging ports (AC Grid, DC CCS), and diagnostic tool connection
+
+### Powertrain telemetry
+- 5-card row showing live data from Front Inverter, Rear Inverter, OBC, DC-DC Converter, HV Booster
+- HV bus voltage/current from each ECU, firmware versions, grid voltage, 12V bus, temperatures
 
 ### ECU grid
 - All 42 ECUs displayed, sorted by importance (powertrain first, then chassis/safety, then body/comfort)
 - Color-coded: green = healthy, amber = stored faults, red = active faults
 - Click any ECU for full detail: SW/HW part numbers, versions, serial, FAZIT, manufacturing date
+
+### Battery module map
+- Physical pack grid (8 rows x 4 cols + 1 = 33 modules) with per-module cell pair voltages
+- Color-coded by health: blue = strongest, green = healthy, amber = below average, red = weakest
+- Pack-wide stats bar: min/max voltage, average, spread
+- Hover for per-module detail (6 cell pair voltages, spread)
 
 ### Fault codes
 - Real faults only (filters out ~2800 incomplete self-test entries)
@@ -114,10 +128,12 @@ The repo also includes standalone CLI tools for direct interaction:
 |------|-------------|
 | `taycan_discover.py` | UDP broadcast to find the DoIP gateway |
 | `taycan_find_ecus.py` | Fast ECU address discovery via single TCP connection |
+| `taycan_sweep.py` | Live DID enumerator with progress bar, extended session support |
 | `taycan_enumerate.py` | Brute-force DID enumeration on a specific ECU |
 | `taycan_scan.py` | Scan all ECUs for identification and DTCs |
 | `taycan_battery.py` | Read battery-specific DIDs from the BECM |
 | `taycan_read.py` | Read specific DIDs from any ECU |
+| `run_investigation.py` | Orchestrated multi-ECU sweep with time estimates |
 
 ## Protocol details
 
@@ -135,7 +151,7 @@ See [TECHNICAL.md](TECHNICAL.md) for the full protocol reference including DoIP 
 - All ECU addresses are in the `0x40xx` range
 - BECM (battery controller) at `0x407B`
 - SoC: DID `0x0286`, formula `(raw - 5) / 132 * 100` (remapped to match car display)
-- SoH: DID `0x028C`, direct percentage
+- SoH: **not yet found** — candidates 0x1E1C/0x1E1E ruled out (volatile), 0x028C is SoC not SoH
 - Pack voltage: DID `0x02BD` bytes 2-3, scale `x0.15V`
 - Pack current: DID `0x02BD` bytes 0-1, scale `x0.1A` (signed)
 - Temperature: DID `0x02CB`, 2 bytes (min/max celsius)
@@ -166,14 +182,16 @@ Full list of 42 ECUs in [TECHNICAL.md](TECHNICAL.md#3-complete-ecu-address-map).
 
 ```
 taycan-odb2/
-├── TECHNICAL.md                # Full protocol reference
+├── TECHNICAL.md                # Full protocol reference (800+ lines)
 ├── taycan_fault_codes.json     # Fault code database (69 DTCs, recalls, tips)
 ├── taycan_discover.py          # Gateway discovery (UDP)
 ├── taycan_find_ecus.py         # ECU address scanner
-├── taycan_enumerate.py         # DID enumerator
+├── taycan_sweep.py             # Live DID enumerator with progress bar
+├── taycan_enumerate.py         # DID enumerator (udsoncan-based)
 ├── taycan_scan.py              # Full ECU scanner
 ├── taycan_battery.py           # Battery data reader
 ├── taycan_read.py              # Generic DID reader
+├── run_investigation.py        # Multi-ECU sweep orchestrator
 ├── config.py                   # ECU map, DID definitions
 ├── doip_helpers.py             # DoIP/UDS library helpers
 ├── requirements.txt            # Python dependencies
@@ -181,11 +199,11 @@ taycan-odb2/
 └── taycan-dashboard/           # Web dashboard
     ├── app.py                  # Flask backend + API
     ├── doip.py                 # Raw DoIP/UDS protocol (no dependencies)
-    ├── config.py               # Dashboard config + battery decoding
+    ├── config.py               # Dashboard config + battery/powertrain decoding
     ├── scanner.py              # Scan orchestration + fault code lookup
-    ├── fault_codes.json        # DTC database (copied at build)
+    ├── fault_codes.json        # DTC database
     ├── templates/
-    │   └── dashboard.html      # Dashboard UI
+    │   └── dashboard.html      # Dashboard UI + HV architecture SVG
     ├── static/
     │   └── dashboard.js        # Frontend logic + charts
     └── scans/                  # Auto-saved scan JSON files

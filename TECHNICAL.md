@@ -418,20 +418,22 @@ Value: `0x81 85 A2 67 6D`. First byte `0x81` may be a flag/address byte. Remaini
 
 A comprehensive sweep of the BECM in extended diagnostic session (0x10 0x03) revealed 134 additional DIDs not available in default session. These include per-module data, cell voltages, and SoH candidates.
 
-#### SoH candidates (unconfirmed)
+#### SoH candidates — RULED OUT
 
-| DID | Size | Raw | Decoded |
-|-----|------|-----|---------|
-| `0x1E1C` | 2 bytes | `0x035C` (860) | 86.0% at ×0.1 scale |
-| `0x1E1E` | 2 bytes | `0x035C` (860) | 86.0% at ×0.1 scale |
+| DID | Size | Scan 1 | Scan 2 | Scan 3 |
+|-----|------|--------|--------|--------|
+| `0x1E1C` | 2 bytes | `0x035C` (860 → 86.0%) | `0x0356` (854 → 85.4%) | `0x02FA` (762 → 76.2%) |
+| `0x1E1E` | 2 bytes | `0x035C` (860 → 86.0%) | `0x0356` (854 → 85.4%) | `0x02FA` (762 → 76.2%) |
 
-Both return identical values. If these are SoH:
-- `0x1E1C` may be "current SoH"
-- `0x1E1E` may be "nominal/new capacity reference"
+**RULED OUT as SoH.** Values dropped from 86% to 76% overnight — real SoH changes by fractions of a percent per month, not 10% per day. These DIDs likely represent a **temperature-adjusted available capacity** or instantaneous energy metric that varies with pack temperature, SoC, and operating conditions.
 
-**Verification needed:** Read again after a different drive cycle. Real SoH should remain stable or drift slowly (fraction of a percent per month). If it fluctuates significantly, these are something else.
+Both DIDs always return identical values to each other.
 
-**Note:** 86% SoH is lower than the 95-96% we initially assumed from the (incorrect) 0x028C interpretation. Cross-reference with a Porsche dealer report would be definitive.
+**The real SoH DID has not been found.** It may require:
+- Security access (service 0x27) to unlock
+- A different DID range not yet swept (0x5000-0xFFFF)
+- Reading from a different ECU (VCU, Gateway)
+- A dealer-only diagnostic session
 
 #### Cell voltage array — DID 0x0667 (396 bytes, 198 × uint16 BE)
 
@@ -931,20 +933,18 @@ The Taycan gateway goes to sleep after a period of inactivity, even with the ign
 - **SoH:** NOT confirmed — two candidates (0x1E1C, 0x1E1E = 86.0%)
 - **Cell-level data:** discovered but not decoded (0x0667, 0x1850–0x1870)
 
-### Priority 1: Confirm the SoH DID
+### Priority 1: Find the SoH DID
 
-**Candidates:** 0x1E1C and 0x1E1E (both = 0x035C = 860 → 86.0% at ×0.1 scale)
+**Candidates 0x1E1C/0x1E1E: RULED OUT.** Dropped from 86% to 76% overnight — far too volatile for SoH. These are likely temperature/capacity metrics.
 
-**Verification steps:**
-1. Read these DIDs across 3-5 scans at different SoC levels
-2. Real SoH should be rock-stable (within 0.5%) across all reads
-3. If they change with SoC, they are not SoH
-4. Compare 86% against Porsche Connect app or dealer report
+**BECM upper range 0x2000-0x4FFF: SWEPT.** Only 1 hit (factory part code). No SoH candidate found.
 
-**Alternative candidates to test if 0x1E1C/E aren't SoH:**
-- `0x1810` = 0x89 (137) — matches the SoC display max
-- `0x02E0` — 4-byte live value, could be a SoH tracking counter
-- Extended DID range 0x2000–0x4FFF not yet swept
+**Remaining options:**
+1. DID range 0x5000-0xFFFF on the BECM (not yet swept)
+2. Security access (service 0x27) — some DIDs may only respond after authentication
+3. Reading from the VCU (0x4076) or Gateway (0x4010) instead of the BECM
+4. Programming session (0x02) instead of extended (0x03)
+5. A dealer PIWIS comparison — photograph the SoH value and the DID traffic simultaneously
 
 ### Priority 2: Decode cell-level data
 
@@ -1011,13 +1011,16 @@ Each of these DIDs has a static hypothesis that needs confirmation:
 
 ## 9. Known unknowns
 
-1. **SoH location** — 0x1E1C is a strong candidate but needs verification. The value 86% is lower than expected.
+1. **SoH location** — NOT FOUND. Candidates 0x1E1C/0x1E1E ruled out (volatile). BECM upper range 0x2000-0x4FFF swept with no result. May require security access (0x27) or a different ECU/session type.
 2. **DID 0x02BD byte 4** — changes with voltage, but encoding unclear
 3. **DID 0x02F9/0x02FA** — 5-byte cell data blocks, first byte `0x81` looks like a flag
 4. **DIDs 0x1900/0x1901** — 4-byte counters (89,661 and 82,357) — km driven? charge cycles? Wh counters?
 5. **Parallel request support** — would cut scan time from 25s to 10s
-6. **Security access** — service `0x27` has not been attempted; some DIDs may unlock only after security challenge
-7. **DC charging data** — all reads so far are AC charging only
+6. **Security access** — service `0x27` has not been attempted; some DIDs (including SoH) may unlock only after security challenge
+7. **DC charging data** — all reads so far are AC charging only. DC fast charging would populate HV Booster telemetry and may reveal different OBC behaviour
+8. **Inverter motor data** — 0x028D returns non-zero at rest (1663/1868) — meaning unknown. Motor RPM/torque/phase data likely zero until driving
+9. **OBC grid voltage scale** — raw values 750/761 from 0x1DDB map to ~230V EU supply but exact scale factor unconfirmed
+10. **BECM 0x5000-0xFFFF range** — not yet swept, may contain SoH or additional cell-level data
 
 ---
 

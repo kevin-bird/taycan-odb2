@@ -950,9 +950,6 @@ body {
     <div class="card-title">HV System Architecture</div>
     <svg viewBox="0 0 900 340" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:900px;margin:0 auto;display:block;">
       <defs>
-        <marker id="arrow" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="5" orient="auto"><path d="M0,0 L10,3 L0,6z" fill="#555"/></marker>
-        <marker id="arrow-r" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="5" orient="auto"><path d="M0,0 L10,3 L0,6z" fill="#d5001c"/></marker>
-        <marker id="arrow-b" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="5" orient="auto"><path d="M0,0 L10,3 L0,6z" fill="#4488ff"/></marker>
         <marker id="arrow-g" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="5" orient="auto"><path d="M0,0 L10,3 L0,6z" fill="#00d4aa"/></marker>
       </defs>
       <style>
@@ -964,111 +961,114 @@ body {
         .label { fill:#e0e0e8; font-family:-apple-system,BlinkMacSystemFont,monospace; font-size:11px; font-weight:700; }
         .sub { fill:#b8b9c8; font-family:monospace; font-size:9px; }
         .addr { fill:#7a7b88; font-family:monospace; font-size:8px; }
-        .wire-hv { stroke:#d5001c; stroke-width:2; fill:none; marker-end:url(#arrow-r); }
-        .wire-lv { stroke:#4488ff; stroke-width:1.5; fill:none; marker-end:url(#arrow-b); }
         .wire-data { stroke:#00d4aa; stroke-width:1.5; fill:none; marker-end:url(#arrow-g); stroke-dasharray:6,3; }
-        .wire-plain { stroke:#555; stroke-width:1; fill:none; }
         .bus-label { fill:#7a7b88; font-family:monospace; font-size:8px; font-weight:600; letter-spacing:1px; }
       </style>
 
-      <!-- HV Bus bar (horizontal) -->
-      <line x1="80" y1="60" x2="760" y2="60" stroke="#d5001c" stroke-width="3" stroke-linecap="round"/>
-      <text x="420" y="50" text-anchor="middle" class="bus-label" fill="#d5001c">HV BUS ~800V DC</text>
-
-      <!-- LV Bus bar -->
-      <line x1="80" y1="295" x2="760" y2="295" stroke="#4488ff" stroke-width="2" stroke-linecap="round"/>
-      <text x="420" y="325" text-anchor="middle" class="bus-label" fill="#4488ff">LV BUS 12V</text>
-
-      <!-- Battery Pack (BECM) -->
-      <rect x="10" y="90" width="130" height="85" class="box-hv"/>
-      <text x="75" y="112" text-anchor="middle" class="label">Battery Pack</text>
-      <text x="75" y="127" text-anchor="middle" class="sub">93.4 kWh · 800V</text>
-      <text x="75" y="141" text-anchor="middle" class="sub">33 modules · 396 cells</text>
-      <text x="75" y="157" text-anchor="middle" class="addr">BECM 0x407B</text>
-      <line x1="75" y1="90" x2="75" y2="60" stroke="#d5001c" stroke-width="2"/>
-
-      <!-- Front Motor -->
-      <rect x="180" y="90" width="120" height="70" class="box-hv"/>
-      <text x="240" y="112" text-anchor="middle" class="label">Front Motor</text>
-      <text x="240" y="127" text-anchor="middle" class="sub">Inverter (HIAMS)</text>
-      <text x="240" y="143" text-anchor="middle" class="addr">0x407C</text>
-      <line x1="240" y1="90" x2="240" y2="60" stroke="#d5001c" stroke-width="2"/>
-
-      <!-- Rear Motor -->
-      <rect x="340" y="90" width="120" height="70" class="box-hv"/>
-      <text x="400" y="112" text-anchor="middle" class="label">Rear Motor</text>
-      <text x="400" y="127" text-anchor="middle" class="sub">Inverter (HIAMS)</text>
-      <text x="400" y="143" text-anchor="middle" class="addr">0x40B8</text>
-      <line x1="400" y1="90" x2="400" y2="60" stroke="#d5001c" stroke-width="2"/>
-
-      <!-- OBC -->
-      <rect x="500" y="90" width="120" height="70" class="box-hv"/>
-      <text x="560" y="112" text-anchor="middle" class="label">On-Board Charger</text>
-      <text x="560" y="127" text-anchor="middle" class="sub">AC 7.2/22 kW</text>
-      <text x="560" y="143" text-anchor="middle" class="addr">OBC 0x4044</text>
-      <line x1="560" y1="90" x2="560" y2="60" stroke="#d5001c" stroke-width="2"/>
-
-      <!-- HV Booster -->
-      <rect x="660" y="90" width="120" height="70" class="box-hv"/>
-      <text x="720" y="112" text-anchor="middle" class="label">HV Booster</text>
-      <text x="720" y="127" text-anchor="middle" class="sub">DC Charge Boost</text>
-      <text x="720" y="143" text-anchor="middle" class="addr">0x40C7</text>
-      <line x1="720" y1="90" x2="720" y2="60" stroke="#d5001c" stroke-width="2"/>
-
-      <!-- DC-DC Converter -->
-      <rect x="180" y="195" width="120" height="65" class="box-lv"/>
-      <text x="240" y="217" text-anchor="middle" class="label">DC-DC Converter</text>
-      <text x="240" y="232" text-anchor="middle" class="sub">800V → 12V</text>
-      <text x="240" y="247" text-anchor="middle" class="addr">0x40B7</text>
-      <line x1="210" y1="195" x2="210" y2="60" stroke="#d5001c" stroke-width="1.5"/>
-      <line x1="270" y1="260" x2="270" y2="295" stroke="#4488ff" stroke-width="1.5"/>
-
-      <!-- Thermal Management -->
-      <rect x="340" y="195" width="120" height="65" class="box"/>
-      <text x="400" y="217" text-anchor="middle" class="label">Thermal Mgmt</text>
-      <text x="400" y="232" text-anchor="middle" class="sub">Coolant · Pumps · Valves</text>
-      <text x="400" y="247" text-anchor="middle" class="addr">0x4042</text>
-      <line x1="400" y1="260" x2="400" y2="295" stroke="#4488ff" stroke-width="1.5"/>
-
-      <!-- Gateway -->
-      <rect x="530" y="195" width="150" height="65" class="box-gw"/>
-      <text x="605" y="217" text-anchor="middle" class="label">DoIP Gateway</text>
-      <text x="605" y="232" text-anchor="middle" class="sub">Ethernet · FlexRay · CAN</text>
-      <text x="605" y="247" text-anchor="middle" class="addr">0x4010 · TCP:13400</text>
-      <line x1="605" y1="260" x2="605" y2="295" stroke="#4488ff" stroke-width="1.5"/>
-
-      <!-- External: AC Plug -->
-      <rect x="500" y="3" width="80" height="30" class="box-ext"/>
-      <text x="540" y="22" text-anchor="middle" class="sub">AC Grid</text>
-      <line x1="540" y1="33" x2="560" y2="60" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
-
-      <!-- External: DC CCS -->
-      <rect x="680" y="3" width="80" height="30" class="box-ext"/>
-      <text x="720" y="22" text-anchor="middle" class="sub">DC CCS</text>
-      <line x1="720" y1="33" x2="720" y2="60" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
+      <!-- TOP ROW: Gateway, DC-DC, Thermal, External connections -->
 
       <!-- External: ENET / Mac -->
-      <rect x="730" y="195" width="130" height="65" class="box-ext"/>
-      <text x="795" y="217" text-anchor="middle" class="label" fill="#00d4aa">Diagnostic Tool</text>
-      <text x="795" y="232" text-anchor="middle" class="sub">Mac · ENET Cable</text>
-      <text x="795" y="247" text-anchor="middle" class="addr">Tester 0x0E80</text>
-      <line x1="730" y1="228" x2="680" y2="228" class="wire-data"/>
+      <rect x="10" y="10" width="130" height="65" class="box-ext"/>
+      <text x="75" y="32" text-anchor="middle" class="label" fill="#00d4aa">Diagnostic Tool</text>
+      <text x="75" y="47" text-anchor="middle" class="sub">Mac · ENET Cable</text>
+      <text x="75" y="62" text-anchor="middle" class="addr">Tester 0x0E80</text>
+
+      <!-- Gateway -->
+      <rect x="180" y="10" width="150" height="65" class="box-gw"/>
+      <text x="255" y="32" text-anchor="middle" class="label">DoIP Gateway</text>
+      <text x="255" y="47" text-anchor="middle" class="sub">Ethernet · FlexRay · CAN</text>
+      <text x="255" y="62" text-anchor="middle" class="addr">0x4010 · TCP:13400</text>
+      <line x1="140" y1="42" x2="180" y2="42" class="wire-data"/>
+      <line x1="255" y1="75" x2="255" y2="105" stroke="#4488ff" stroke-width="1.5"/>
+
+      <!-- DC-DC Converter -->
+      <rect x="370" y="10" width="120" height="65" class="box-lv"/>
+      <text x="430" y="32" text-anchor="middle" class="label">DC-DC Converter</text>
+      <text x="430" y="47" text-anchor="middle" class="sub">800V → 12V</text>
+      <text x="430" y="62" text-anchor="middle" class="addr">0x40B7</text>
+      <line x1="430" y1="75" x2="430" y2="105" stroke="#4488ff" stroke-width="1.5"/>
+      <line x1="400" y1="75" x2="400" y2="130" stroke="#d5001c" stroke-width="1.5"/>
+
+      <!-- Thermal Management -->
+      <rect x="530" y="10" width="120" height="65" class="box"/>
+      <text x="590" y="32" text-anchor="middle" class="label">Thermal Mgmt</text>
+      <text x="590" y="47" text-anchor="middle" class="sub">Coolant · Pumps · Valves</text>
+      <text x="590" y="62" text-anchor="middle" class="addr">0x4042</text>
+      <line x1="590" y1="75" x2="590" y2="105" stroke="#4488ff" stroke-width="1.5"/>
+
+      <!-- External: AC Plug -->
+      <rect x="690" y="10" width="80" height="28" class="box-ext"/>
+      <text x="730" y="29" text-anchor="middle" class="sub">AC Grid</text>
+      <line x1="730" y1="38" x2="730" y2="130" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
+
+      <!-- External: DC CCS -->
+      <rect x="790" y="10" width="80" height="28" class="box-ext"/>
+      <text x="830" y="29" text-anchor="middle" class="sub">DC CCS</text>
+      <line x1="830" y1="38" x2="830" y2="130" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
+
+      <!-- LV Bus bar -->
+      <line x1="180" y1="105" x2="660" y2="105" stroke="#4488ff" stroke-width="2" stroke-linecap="round"/>
+      <text x="120" y="109" text-anchor="middle" class="bus-label" fill="#4488ff">LV 12V</text>
+
+      <!-- HV Bus bar (horizontal) -->
+      <line x1="60" y1="150" x2="840" y2="150" stroke="#d5001c" stroke-width="3" stroke-linecap="round"/>
+      <text x="40" y="154" text-anchor="end" class="bus-label" fill="#d5001c">HV ~800V</text>
+
+      <!-- BOTTOM ROW: Battery, Motors, OBC, HV Booster -->
+
+      <!-- Battery Pack (BECM) -->
+      <rect x="10" y="175" width="130" height="85" class="box-hv"/>
+      <text x="75" y="197" text-anchor="middle" class="label">Battery Pack</text>
+      <text x="75" y="212" text-anchor="middle" class="sub">93.4 kWh · 800V</text>
+      <text x="75" y="226" text-anchor="middle" class="sub">33 modules · 396 cells</text>
+      <text x="75" y="242" text-anchor="middle" class="addr">BECM 0x407B</text>
+      <line x1="75" y1="175" x2="75" y2="150" stroke="#d5001c" stroke-width="2"/>
+
+      <!-- Front Motor -->
+      <rect x="180" y="175" width="120" height="70" class="box-hv"/>
+      <text x="240" y="197" text-anchor="middle" class="label">Front Motor</text>
+      <text x="240" y="212" text-anchor="middle" class="sub">Inverter (HIAMS)</text>
+      <text x="240" y="228" text-anchor="middle" class="addr">0x407C</text>
+      <line x1="240" y1="175" x2="240" y2="150" stroke="#d5001c" stroke-width="2"/>
+
+      <!-- Rear Motor -->
+      <rect x="340" y="175" width="120" height="70" class="box-hv"/>
+      <text x="400" y="197" text-anchor="middle" class="label">Rear Motor</text>
+      <text x="400" y="212" text-anchor="middle" class="sub">Inverter (HIAMS)</text>
+      <text x="400" y="228" text-anchor="middle" class="addr">0x40B8</text>
+      <line x1="400" y1="175" x2="400" y2="150" stroke="#d5001c" stroke-width="2"/>
+
+      <!-- OBC -->
+      <rect x="590" y="175" width="120" height="70" class="box-hv"/>
+      <text x="650" y="197" text-anchor="middle" class="label">On-Board Charger</text>
+      <text x="650" y="212" text-anchor="middle" class="sub">AC 7.2/22 kW</text>
+      <text x="650" y="228" text-anchor="middle" class="addr">OBC 0x4044</text>
+      <line x1="650" y1="175" x2="650" y2="150" stroke="#d5001c" stroke-width="2"/>
+      <line x1="730" y1="130" x2="700" y2="175" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
+
+      <!-- HV Booster -->
+      <rect x="750" y="175" width="120" height="70" class="box-hv"/>
+      <text x="810" y="197" text-anchor="middle" class="label">HV Booster</text>
+      <text x="810" y="212" text-anchor="middle" class="sub">DC Charge Boost</text>
+      <text x="810" y="228" text-anchor="middle" class="addr">0x40C7</text>
+      <line x1="810" y1="175" x2="810" y2="150" stroke="#d5001c" stroke-width="2"/>
+      <line x1="830" y1="130" x2="820" y2="175" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
 
       <!-- Wheels -->
-      <circle cx="205" cy="172" r="5" fill="none" stroke="#555" stroke-width="1.5"/>
-      <circle cx="275" cy="172" r="5" fill="none" stroke="#555" stroke-width="1.5"/>
-      <circle cx="365" cy="172" r="5" fill="none" stroke="#555" stroke-width="1.5"/>
-      <circle cx="435" cy="172" r="5" fill="none" stroke="#555" stroke-width="1.5"/>
-      <text x="240" y="185" text-anchor="middle" class="addr">Front Axle</text>
-      <text x="400" y="185" text-anchor="middle" class="addr">Rear Axle</text>
+      <circle cx="205" cy="257" r="5" fill="none" stroke="#555" stroke-width="1.5"/>
+      <circle cx="275" cy="257" r="5" fill="none" stroke="#555" stroke-width="1.5"/>
+      <circle cx="365" cy="257" r="5" fill="none" stroke="#555" stroke-width="1.5"/>
+      <circle cx="435" cy="257" r="5" fill="none" stroke="#555" stroke-width="1.5"/>
+      <text x="240" y="275" text-anchor="middle" class="addr">Front Axle</text>
+      <text x="400" y="275" text-anchor="middle" class="addr">Rear Axle</text>
 
       <!-- Legend -->
-      <line x1="40" y1="320" x2="65" y2="320" stroke="#d5001c" stroke-width="2"/>
-      <text x="70" y="323" class="addr" fill="#d5001c">HV (800V)</text>
-      <line x1="140" y1="320" x2="165" y2="320" stroke="#4488ff" stroke-width="2"/>
-      <text x="170" y="323" class="addr" fill="#4488ff">LV (12V)</text>
-      <line x1="230" y1="320" x2="255" y2="320" stroke="#00d4aa" stroke-width="1.5" stroke-dasharray="6,3"/>
-      <text x="260" y="323" class="addr" fill="#00d4aa">Ethernet (DoIP)</text>
+      <line x1="40" y1="310" x2="65" y2="310" stroke="#d5001c" stroke-width="2"/>
+      <text x="70" y="313" class="addr" fill="#d5001c">HV (800V)</text>
+      <line x1="140" y1="310" x2="165" y2="310" stroke="#4488ff" stroke-width="2"/>
+      <text x="170" y="313" class="addr" fill="#4488ff">LV (12V)</text>
+      <line x1="230" y1="310" x2="255" y2="310" stroke="#00d4aa" stroke-width="1.5" stroke-dasharray="6,3"/>
+      <text x="260" y="313" class="addr" fill="#00d4aa">Ethernet (DoIP)</text>
     </svg>
   </div>
 

@@ -986,8 +986,8 @@ body {
       <text x="430" y="32" text-anchor="middle" class="label">DC-DC Converter</text>
       <text x="430" y="47" text-anchor="middle" class="sub">800V → 12V</text>
       <text x="430" y="62" text-anchor="middle" class="addr">0x40B7</text>
-      <line x1="430" y1="75" x2="430" y2="105" stroke="#4488ff" stroke-width="1.5"/>
-      <line x1="400" y1="75" x2="400" y2="130" stroke="#d5001c" stroke-width="1.5"/>
+      <line x1="450" y1="75" x2="450" y2="105" stroke="#4488ff" stroke-width="1.5"/>
+      <line x1="410" y1="75" x2="410" y2="150" stroke="#d5001c" stroke-width="1.5"/>
 
       <!-- Thermal Management -->
       <rect x="530" y="10" width="120" height="65" class="box"/>
@@ -1016,19 +1016,19 @@ body {
 
       <!-- BOTTOM ROW: Battery, Motors, OBC, HV Booster -->
 
-      <!-- Battery Pack (BECM) -->
-      <rect x="10" y="175" width="130" height="85" class="box-hv"/>
-      <text x="75" y="197" text-anchor="middle" class="label">Battery Pack</text>
-      <text x="75" y="212" text-anchor="middle" class="sub">93.4 kWh · 800V</text>
-      <text x="75" y="226" text-anchor="middle" class="sub">33 modules · 396 cells</text>
-      <text x="75" y="242" text-anchor="middle" class="addr">BECM 0x407B</text>
-      <line x1="75" y1="175" x2="75" y2="150" stroke="#d5001c" stroke-width="2"/>
-
       <!-- Front Motor -->
-      <rect x="180" y="175" width="120" height="70" class="box-hv"/>
-      <text x="240" y="197" text-anchor="middle" class="label">Front Motor</text>
-      <text x="240" y="212" text-anchor="middle" class="sub">Inverter (HIAMS)</text>
-      <text x="240" y="228" text-anchor="middle" class="addr">0x407C</text>
+      <rect x="10" y="175" width="120" height="70" class="box-hv"/>
+      <text x="70" y="197" text-anchor="middle" class="label">Front Motor</text>
+      <text x="70" y="212" text-anchor="middle" class="sub">Inverter (HIAMS)</text>
+      <text x="70" y="228" text-anchor="middle" class="addr">0x407C</text>
+      <line x1="70" y1="175" x2="70" y2="150" stroke="#d5001c" stroke-width="2"/>
+
+      <!-- Battery Pack (BECM) -->
+      <rect x="170" y="175" width="140" height="85" class="box-hv"/>
+      <text x="240" y="197" text-anchor="middle" class="label">Battery Pack</text>
+      <text x="240" y="212" text-anchor="middle" class="sub">93.4 kWh · 800V</text>
+      <text x="240" y="226" text-anchor="middle" class="sub">33 modules · 396 cells</text>
+      <text x="240" y="242" text-anchor="middle" class="addr">BECM 0x407B</text>
       <line x1="240" y1="175" x2="240" y2="150" stroke="#d5001c" stroke-width="2"/>
 
       <!-- Rear Motor -->
@@ -1055,11 +1055,11 @@ body {
       <line x1="830" y1="130" x2="820" y2="175" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
 
       <!-- Wheels -->
-      <circle cx="205" cy="257" r="5" fill="none" stroke="#555" stroke-width="1.5"/>
-      <circle cx="275" cy="257" r="5" fill="none" stroke="#555" stroke-width="1.5"/>
+      <circle cx="35" cy="257" r="5" fill="none" stroke="#555" stroke-width="1.5"/>
+      <circle cx="105" cy="257" r="5" fill="none" stroke="#555" stroke-width="1.5"/>
       <circle cx="365" cy="257" r="5" fill="none" stroke="#555" stroke-width="1.5"/>
       <circle cx="435" cy="257" r="5" fill="none" stroke="#555" stroke-width="1.5"/>
-      <text x="240" y="275" text-anchor="middle" class="addr">Front Axle</text>
+      <text x="70" y="275" text-anchor="middle" class="addr">Front Axle</text>
       <text x="400" y="275" text-anchor="middle" class="addr">Rear Axle</text>
 
       <!-- Legend -->

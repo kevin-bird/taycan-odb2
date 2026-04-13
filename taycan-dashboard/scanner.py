@@ -66,6 +66,12 @@ def _read_powertrain_ecu(conn, addr: int) -> dict:
 
     raw_dids = {}
     try:
+        # Read OBC default-session DID before switching to extended
+        if addr == 0x4044:
+            raw = conn.read_did(addr, config.OBC_DEFAULT_DID, timeout=0.8)
+            if raw is not None:
+                raw_dids[config.OBC_DEFAULT_DID] = raw
+
         # Try extended session for better data; fall back to default if it fails
         conn.change_session(addr, session=0x03, timeout=1.5)
         for did in dids:
@@ -276,6 +282,12 @@ def run_scan(gateway_ip: str = None,
                         if raw is not None:
                             battery_raw[did] = raw
 
+                    # OBDb-sourced extended session DIDs (temps, cell extremes, current)
+                    for did in config.BECM_EXTENDED_DIDS:
+                        raw = conn.read_did(addr, did, config.UDS_TIMEOUT)
+                        if raw is not None:
+                            battery_raw[did] = raw
+
                     # Cell voltage array (0x0667) — 396 bytes historical min/max
                     raw = conn.read_did(addr, config.CELL_ARRAY_DID, 2.0)
                     if raw is not None:
@@ -298,6 +310,30 @@ def run_scan(gateway_ip: str = None,
                     conn.change_session(addr, session=0x01, timeout=2.0)
 
                 result["battery"] = config.decode_battery(battery_raw)
+
+            # VCU — displayed SoC + motor RPM/torque (default session)
+            if addr == config.VCU_ADDRESS:
+                if progress_callback:
+                    progress_callback(idx + 1, total,
+                                      f"Reading VCU data (0x{addr:04X})")
+                vcu_raw = {}
+                for did in config.VCU_DIDS:
+                    raw = conn.read_did(addr, did, config.UDS_TIMEOUT)
+                    if raw is not None:
+                        vcu_raw[did] = raw
+                if vcu_raw:
+                    vcu_data = config.decode_vcu(vcu_raw)
+                    # Merge displayed SoC into battery result
+                    if result["battery"] and vcu_data.get("soc_displayed") is not None:
+                        result["battery"]["soc_displayed"] = vcu_data["soc_displayed"]
+                    # Store motor data in powertrain
+                    if any(k.startswith("motor") for k in vcu_data):
+                        if result["powertrain"] is None:
+                            result["powertrain"] = {}
+                        result["powertrain"]["vcu_motors"] = {
+                            k: v for k, v in vcu_data.items()
+                            if k.startswith("motor")
+                        }
 
             # Powertrain ECU live telemetry
             # Decode each ECU's data immediately so we never hold bytes in result

@@ -37,6 +37,7 @@ BATTERY_CAPACITY_KWH = 93.4  # Performance Battery Plus (83.7 for standard)
 # ─── Key ECU Addresses ───────────────────────────────────────────────────
 
 BECM_ADDRESS = 0x407B  # Battery Energy Control Module
+VCU_ADDRESS = 0x4076   # Vehicle Control Unit (powertrain supervisor)
 
 # ─── ASAM ID → Friendly Name Map ─────────────────────────────────────────
 
@@ -122,13 +123,41 @@ BATTERY_DIDS = [
     0x04FE,  # Unknown
     0x51E0,  # SoH — HV battery health (2 bytes, default session)
              # Source: OBDb/Porsche-Taycan signalset, confirmed across MY2020-2025
+    0x1801,  # HV battery voltage (uint16, raw / 10 = volts) — default session
 ]
+
+# ─── BECM Extended Session DIDs (OBDb-sourced) ──────────────────────────
 
 # BMS current limits (extended session required)
 # 0x1E1C = max dynamic discharge current limit (amps)
 # 0x1E1E = max predicted discharge current limit (amps)
 # NOT SoH — these vary with temperature/SoC. Kept for analysis.
 BMS_CURRENT_LIMIT_DIDS = [0x1E1C, 0x1E1E]
+
+# Additional BECM extended session DIDs (from OBDb signalset)
+BECM_EXTENDED_DIDS = [
+    0x1802,  # HV battery current (uint16, raw * 2.56 - 1500 = amps)
+    0x1E0E,  # Battery temp max + cell number (2 bytes: temp-100, cell#)
+    0x1E0F,  # Battery temp min + cell number (2 bytes: temp-100, cell#)
+    0x1E10,  # Battery temp average (1 byte, raw - 100 = celsius)
+    0x181C,  # Cooling inlet temperature (1 byte, raw - 50 = celsius)
+    0x181D,  # Cooling outlet temperature (1 byte, raw - 50 = celsius)
+    0x1E2C,  # Cell SoC max + index (2 bytes: value%, cell#)
+    0x1E2D,  # Cell SoC min + index (2 bytes: value%, cell#)
+    0x1E33,  # Cell voltage max + index (3 bytes: uint16/1000=V, cell#)
+    0x1E34,  # Cell voltage min + index (3 bytes: uint16/1000=V, cell#)
+    0x1E3B,  # Cell voltage delta (uint16, raw / 1000 = volts)
+]
+
+# ─── VCU DIDs (0x4076, default session) ──────────────────────────────────
+
+VCU_DIDS = [
+    0x08D2,  # Displayed SoC (uint16, raw / 100 = %) — matches car dashboard
+    0x1151,  # Motor 1 RPM (int16, raw / 2 = RPM, signed)
+    0x1152,  # Motor 2 RPM (int16, raw / 2 = RPM, signed)
+    0x1153,  # Motor 1 torque (int16, raw / 32 = Nm, signed)
+    0x1154,  # Motor 2 torque (int16, raw / 32 = Nm, signed)
+]
 
 # Per-module cell data (extended session required)
 # 33 blocks × 43 bytes each — physical module grid with 6 cell pair voltages
@@ -152,19 +181,23 @@ INVERTER_DIDS = [
     0x1FFF,  # Firmware version (ASCII)
 ]
 
-# OBC (0x4044) DIDs
+# OBC (0x4044) DIDs — extended session
 OBC_DIDS = [
     0x02BD,  # Pack telemetry
-    0x15E2,  # Temperature candidate
+    0x15E2,  # Charger coolant temperature (raw - 40 = celsius, OBDb confirmed)
     0x1557,  # Charge current limit candidate
     0x155A,  # Max power candidate
-    0x15EE,  # Session counter
-    0x15EF,  # Session counter
+    0x15EE,  # Total charge duration (uint32, minutes, OBDb confirmed)
+    0x15EF,  # Total energy turnover (uint32, kWh, OBDb confirmed)
+    0x15D6,  # Charger efficiency (raw / 10 + 75 = %, OBDb confirmed)
     0x15F3,  # Lifetime energy counter
     0x1DDA,  # 5 bytes
     0x1DDB,  # 9 bytes — 3-phase grid voltage candidate
     0x1DD0,  # Temperature candidate
 ]
+
+# OBC default session DID
+OBC_DEFAULT_DID = 0x4965  # HV battery stored energy (uint16, raw / 20 = kWh)
 
 # DC-DC Converter (0x40B7) DIDs
 DCDC_DIDS = [
@@ -195,6 +228,7 @@ def decode_battery(raw_dids: dict[int, Optional[bytes]]) -> dict:
     result = {
         "soc_percent": None,
         "soc_raw": None,
+        "soc_displayed": None,       # VCU 0x08D2 — matches car dashboard
         "soh_percent": None,
         "soh_raw": None,
         "charging": None,
@@ -203,11 +237,25 @@ def decode_battery(raw_dids: dict[int, Optional[bytes]]) -> dict:
         "pack_power_kw": None,
         "temperature_min_c": None,
         "temperature_max_c": None,
+        "temperature_avg_c": None,
+        "temp_max_cell": None,       # Cell # with highest temp
+        "temp_min_cell": None,       # Cell # with lowest temp
+        "coolant_in_c": None,
+        "coolant_out_c": None,
+        "cell_soc_max": None,        # Highest cell SoC %
+        "cell_soc_max_idx": None,
+        "cell_soc_min": None,        # Lowest cell SoC %
+        "cell_soc_min_idx": None,
+        "cell_v_max_mv": None,       # Highest cell voltage mV
+        "cell_v_max_idx": None,
+        "cell_v_min_mv": None,       # Lowest cell voltage mV
+        "cell_v_min_idx": None,
+        "cell_v_delta_mv": None,     # Max cell voltage spread mV
         "pack_telemetry_hex": None,
         "module_status": None,
         "module_data": None,
-        "module_grid": None,        # Physical module map with voltages
-        "cell_stats": None,          # Pack-wide cell voltage stats
+        "module_grid": None,
+        "cell_stats": None,
         "raw_dids": {},
     }
 
@@ -234,27 +282,88 @@ def decode_battery(raw_dids: dict[int, Optional[bytes]]) -> dict:
     if charge_raw and len(charge_raw) >= 1:
         result["charging"] = charge_raw[0] == 1
 
-    # Temperature pair (0x02CB): 2 bytes, min/max
+    # HV battery voltage (0x1801): OBDb confirmed, uint16 / 10 = volts
+    volt_raw = raw_dids.get(0x1801)
+    if volt_raw and len(volt_raw) >= 2:
+        result["pack_voltage_v"] = round(
+            int.from_bytes(volt_raw[:2], "big") / 10.0, 1)
+
+    # HV battery current (0x1802): OBDb confirmed, uint16 * 2.56 - 1500 = amps
+    cur_raw = raw_dids.get(0x1802)
+    if cur_raw and len(cur_raw) >= 2:
+        result["pack_current_a"] = round(
+            int.from_bytes(cur_raw[:2], "big") * 2.56 - 1500, 1)
+
+    # Fallback: pack telemetry (0x02BD) if dedicated DIDs didn't respond
+    telem_raw = raw_dids.get(0x02BD)
+    if telem_raw:
+        result["pack_telemetry_hex"] = telem_raw.hex()
+        if len(telem_raw) >= 4:
+            if result["pack_current_a"] is None:
+                current_raw = int.from_bytes(telem_raw[0:2], "big", signed=True)
+                result["pack_current_a"] = round(current_raw * 0.1, 1)
+            if result["pack_voltage_v"] is None:
+                voltage_raw = int.from_bytes(telem_raw[2:4], "big")
+                result["pack_voltage_v"] = round(voltage_raw * 0.15, 1)
+
+    # Compute power from voltage * current
+    if result["pack_voltage_v"] and result["pack_current_a"] is not None:
+        result["pack_power_kw"] = round(
+            result["pack_voltage_v"] * result["pack_current_a"] / 1000, 1)
+
+    # Temperature pair (0x02CB): 2 bytes, min/max (fallback)
     temp_raw = raw_dids.get(0x02CB)
     if temp_raw and len(temp_raw) >= 2:
         result["temperature_min_c"] = temp_raw[0]
         result["temperature_max_c"] = temp_raw[1]
 
-    # Pack telemetry (0x02BD): 10 bytes — decode voltage, current, power
-    # Bytes 0-1: charge current (×0.1A, signed)
-    # Bytes 2-3: pack voltage (×0.15V)
-    # Byte 5: internal temp (×0.5°C)
-    telem_raw = raw_dids.get(0x02BD)
-    if telem_raw:
-        result["pack_telemetry_hex"] = telem_raw.hex()
-        if len(telem_raw) >= 4:
-            current_raw = int.from_bytes(telem_raw[0:2], "big", signed=True)
-            result["pack_current_a"] = round(current_raw * 0.1, 1)
-            voltage_raw = int.from_bytes(telem_raw[2:4], "big")
-            result["pack_voltage_v"] = round(voltage_raw * 0.15, 1)
-            if result["pack_voltage_v"] and result["pack_current_a"] is not None:
-                result["pack_power_kw"] = round(
-                    result["pack_voltage_v"] * result["pack_current_a"] / 1000, 1)
+    # OBDb temperature sensors (extended session, override 0x02CB if available)
+    # 0x1E0E: temp max (byte0 - 100) + cell# (byte1)
+    t_max = raw_dids.get(0x1E0E)
+    if t_max and len(t_max) >= 2:
+        result["temperature_max_c"] = t_max[0] - 100
+        result["temp_max_cell"] = t_max[1]
+    # 0x1E0F: temp min (byte0 - 100) + cell# (byte1)
+    t_min = raw_dids.get(0x1E0F)
+    if t_min and len(t_min) >= 2:
+        result["temperature_min_c"] = t_min[0] - 100
+        result["temp_min_cell"] = t_min[1]
+    # 0x1E10: temp average (byte0 - 100)
+    t_avg = raw_dids.get(0x1E10)
+    if t_avg and len(t_avg) >= 1:
+        result["temperature_avg_c"] = t_avg[0] - 100
+    # 0x181C / 0x181D: coolant inlet/outlet (byte0 - 50)
+    cool_in = raw_dids.get(0x181C)
+    if cool_in and len(cool_in) >= 1:
+        result["coolant_in_c"] = cool_in[0] - 50
+    cool_out = raw_dids.get(0x181D)
+    if cool_out and len(cool_out) >= 1:
+        result["coolant_out_c"] = cool_out[0] - 50
+
+    # Cell SoC extremes (0x1E2C max, 0x1E2D min)
+    csoc_max = raw_dids.get(0x1E2C)
+    if csoc_max and len(csoc_max) >= 2:
+        result["cell_soc_max"] = csoc_max[0]
+        result["cell_soc_max_idx"] = csoc_max[1]
+    csoc_min = raw_dids.get(0x1E2D)
+    if csoc_min and len(csoc_min) >= 2:
+        result["cell_soc_min"] = csoc_min[0]
+        result["cell_soc_min_idx"] = csoc_min[1]
+
+    # Cell voltage extremes (0x1E33 max, 0x1E34 min) — uint16/1000 + index
+    cv_max = raw_dids.get(0x1E33)
+    if cv_max and len(cv_max) >= 3:
+        result["cell_v_max_mv"] = int.from_bytes(cv_max[:2], "big")
+        result["cell_v_max_idx"] = cv_max[2]
+    cv_min = raw_dids.get(0x1E34)
+    if cv_min and len(cv_min) >= 3:
+        result["cell_v_min_mv"] = int.from_bytes(cv_min[:2], "big")
+        result["cell_v_min_idx"] = cv_min[2]
+
+    # Cell voltage delta (0x1E3B) — uint16/1000 = volts → store as mV
+    cv_delta = raw_dids.get(0x1E3B)
+    if cv_delta and len(cv_delta) >= 2:
+        result["cell_v_delta_mv"] = int.from_bytes(cv_delta[:2], "big")
 
     # Module status (0x0407): 16 bytes = 8 × uint16 BE
     mod_status = raw_dids.get(0x0407)
@@ -385,6 +494,33 @@ def compute_cell_stats(modules: list) -> dict:
     }
 
 
+def decode_vcu(raw_dids: dict[int, Optional[bytes]]) -> dict:
+    """Decode VCU DIDs into dashboard values."""
+    result = {}
+
+    # 0x08D2: Displayed SoC (uint16 / 100 = %)
+    soc_disp = raw_dids.get(0x08D2)
+    if soc_disp and len(soc_disp) >= 2:
+        result["soc_displayed"] = round(
+            int.from_bytes(soc_disp[:2], "big") / 100.0, 1)
+
+    # Motor RPM: 0x1151 (motor 1), 0x1152 (motor 2) — int16 / 2 = RPM
+    for did, key in [(0x1151, "motor1_rpm"), (0x1152, "motor2_rpm")]:
+        raw = raw_dids.get(did)
+        if raw and len(raw) >= 2:
+            result[key] = round(
+                int.from_bytes(raw[:2], "big", signed=True) / 2.0, 1)
+
+    # Motor torque: 0x1153 (motor 1), 0x1154 (motor 2) — int16 / 32 = Nm
+    for did, key in [(0x1153, "motor1_torque_nm"), (0x1154, "motor2_torque_nm")]:
+        raw = raw_dids.get(did)
+        if raw and len(raw) >= 2:
+            result[key] = round(
+                int.from_bytes(raw[:2], "big", signed=True) / 32.0, 1)
+
+    return result
+
+
 def decode_powertrain(powertrain: dict) -> dict:
     """
     Decode raw DIDs from powertrain ECUs (inverters, OBC, DC-DC) into
@@ -450,10 +586,31 @@ def decode_powertrain(powertrain: dict) -> dict:
         if temp and len(temp) >= 1:
             obc["temperature_c"] = temp[0]
 
-        # 0x15E2: temperature or percent
-        status = obc_raw.get(0x15E2)
-        if status and len(status) >= 1:
-            obc["status_byte"] = status[0]
+        # 0x15E2: charger coolant temperature (OBDb: raw - 40 = celsius)
+        coolant = obc_raw.get(0x15E2)
+        if coolant and len(coolant) >= 1:
+            obc["coolant_temp_c"] = coolant[0] - 40
+
+        # 0x15D6: charger efficiency (OBDb: raw / 10 + 75 = %)
+        eff = obc_raw.get(0x15D6)
+        if eff and len(eff) >= 1:
+            obc["efficiency_pct"] = round(eff[0] / 10.0 + 75, 1)
+
+        # 0x15EE: total charge duration (uint32, minutes)
+        dur = obc_raw.get(0x15EE)
+        if dur and len(dur) >= 4:
+            obc["charge_duration_min"] = int.from_bytes(dur, "big")
+
+        # 0x15EF: total energy turnover (uint32, kWh)
+        energy = obc_raw.get(0x15EF)
+        if energy and len(energy) >= 4:
+            obc["total_energy_kwh"] = int.from_bytes(energy, "big")
+
+        # 0x4965: stored energy (uint16 / 20 = kWh) — from default session
+        stored = obc_raw.get(0x4965)
+        if stored and len(stored) >= 2:
+            obc["stored_energy_kwh"] = round(
+                int.from_bytes(stored[:2], "big") / 20.0, 1)
 
         result["obc"] = obc
 

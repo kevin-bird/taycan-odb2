@@ -144,11 +144,12 @@ function renderScan(scan) {
   // Battery
   const bat = scan.battery || {};
   renderSoH(bat.soh_percent);
-  renderSoC(bat.soc_percent);
+  renderSoC(bat.soc_displayed != null ? bat.soc_displayed : bat.soc_percent,
+            bat.soc_percent);
   renderCharging(bat.charging);
   renderVoltage(bat.pack_voltage_v);
   renderPower(bat.pack_current_a, bat.pack_power_kw);
-  renderTemp(bat.temperature_min_c, bat.temperature_max_c);
+  renderTemp(bat);
   renderModuleStatus(bat.module_status, bat.module_data);
 
   // Powertrain panel
@@ -158,7 +159,7 @@ function renderScan(scan) {
   renderEcuGrid(scan.ecus || []);
 
   // Cell / Module grid
-  renderCellGrid(bat.module_grid, bat.cell_stats);
+  renderCellGrid(bat.module_grid, bat.cell_stats, bat);
 
   // DTCs
   renderDtcSummary(scan.ecus || []);
@@ -196,7 +197,7 @@ function renderSoH(pct) {
   }
 }
 
-function renderSoC(pct) {
+function renderSoC(pct, bmsSoc) {
   const el = document.getElementById("soc-value");
   const bar = document.getElementById("soc-bar");
   const gaugeEl = document.getElementById("soc-gauge-value");
@@ -205,7 +206,12 @@ function renderSoC(pct) {
 
   if (pct != null) {
     const display = Math.min(100, pct);
-    el.textContent = `${display.toFixed(1)}%`;
+    // Show BMS SoC alongside if different from displayed
+    if (bmsSoc != null && Math.abs(bmsSoc - pct) > 1) {
+      el.textContent = `${display.toFixed(1)}% (BMS ${bmsSoc}%)`;
+    } else {
+      el.textContent = `${display.toFixed(1)}%`;
+    }
     bar.style.width = `${display}%`;
 
     // Large gauge
@@ -236,12 +242,25 @@ function renderCharging(charging) {
   }
 }
 
-function renderTemp(min, max) {
+function renderTemp(bat) {
   const el = document.getElementById("temp-value");
+  const min = bat.temperature_min_c;
+  const max = bat.temperature_max_c;
   if (min != null && max != null) {
-    el.textContent = `${min}\u00B0C / ${max}\u00B0C`;
+    let text = `${min}\u00B0C / ${max}\u00B0C`;
+    if (bat.temperature_avg_c != null) text += ` (avg ${bat.temperature_avg_c}\u00B0C)`;
+    el.textContent = text;
   } else {
     el.textContent = "-- / --";
+  }
+  // Coolant temperatures
+  const coolEl = document.getElementById("coolant-value");
+  if (coolEl) {
+    if (bat.coolant_in_c != null && bat.coolant_out_c != null) {
+      coolEl.textContent = `In ${bat.coolant_in_c}\u00B0C / Out ${bat.coolant_out_c}\u00B0C`;
+    } else {
+      coolEl.textContent = "--";
+    }
   }
 }
 
@@ -282,16 +301,21 @@ function renderPowertrain(powertrain) {
 
   const cards = [];
 
+  // Motor data from VCU
+  const motors = powertrain.vcu_motors || {};
+
   // Front inverter
   if (powertrain.front_inverter) {
     const inv = powertrain.front_inverter;
     const metrics = [];
+    if (motors.motor1_rpm != null)
+      metrics.push(["RPM", `${motors.motor1_rpm}<span class="unit">rpm</span>`]);
+    if (motors.motor1_torque_nm != null)
+      metrics.push(["Torque", `${motors.motor1_torque_nm}<span class="unit">Nm</span>`]);
     if (inv.pack_voltage_v != null)
       metrics.push(["HV Bus", `${inv.pack_voltage_v}<span class="unit">V</span>`]);
     if (inv.pack_current_a != null)
       metrics.push(["Current", `${inv.pack_current_a}<span class="unit">A</span>`]);
-    if (inv.motor_metric != null)
-      metrics.push(["0x028D", `${inv.motor_metric}`]);  // unknown scale
     cards.push(ptCard("Front Inverter", "0x407C", metrics, inv.firmware));
   }
 
@@ -299,12 +323,14 @@ function renderPowertrain(powertrain) {
   if (powertrain.rear_inverter) {
     const inv = powertrain.rear_inverter;
     const metrics = [];
+    if (motors.motor2_rpm != null)
+      metrics.push(["RPM", `${motors.motor2_rpm}<span class="unit">rpm</span>`]);
+    if (motors.motor2_torque_nm != null)
+      metrics.push(["Torque", `${motors.motor2_torque_nm}<span class="unit">Nm</span>`]);
     if (inv.pack_voltage_v != null)
       metrics.push(["HV Bus", `${inv.pack_voltage_v}<span class="unit">V</span>`]);
     if (inv.pack_current_a != null)
       metrics.push(["Current", `${inv.pack_current_a}<span class="unit">A</span>`]);
-    if (inv.motor_metric != null)
-      metrics.push(["0x028D", `${inv.motor_metric}`]);  // unknown scale
     cards.push(ptCard("Rear Inverter", "0x40B8", metrics, inv.firmware));
   }
 
@@ -312,15 +338,20 @@ function renderPowertrain(powertrain) {
   if (powertrain.obc) {
     const obc = powertrain.obc;
     const metrics = [];
-    if (obc.grid_raw && obc.grid_raw.length === 3) {
-      metrics.push(["Grid L1 (raw)", `${obc.grid_raw[0]}`]);
-      metrics.push(["Grid L2 (raw)", `${obc.grid_raw[1]}`]);
-      metrics.push(["Grid L3 (raw)", `${obc.grid_raw[2]}`]);
+    if (obc.stored_energy_kwh != null)
+      metrics.push(["Stored", `${obc.stored_energy_kwh}<span class="unit">kWh</span>`]);
+    if (obc.efficiency_pct != null)
+      metrics.push(["Efficiency", `${obc.efficiency_pct}<span class="unit">%</span>`]);
+    if (obc.coolant_temp_c != null)
+      metrics.push(["Coolant", `${obc.coolant_temp_c}<span class="unit">&deg;C</span>`]);
+    if (obc.total_energy_kwh != null)
+      metrics.push(["Total Energy", `${obc.total_energy_kwh.toLocaleString()}<span class="unit">kWh</span>`]);
+    if (obc.charge_duration_min != null) {
+      const hrs = Math.round(obc.charge_duration_min / 60);
+      metrics.push(["Total Time", `${hrs.toLocaleString()}<span class="unit">hrs</span>`]);
     }
-    if (obc.temperature_c != null)
+    if (obc.temperature_c != null && obc.coolant_temp_c == null)
       metrics.push(["Temp", `${obc.temperature_c}<span class="unit">&deg;C</span>`]);
-    if (obc.lifetime_counter != null)
-      metrics.push(["Lifetime", `${(obc.lifetime_counter / 1000).toFixed(1)}k`]);
     cards.push(ptCard("On-Board Charger", "0x4044", metrics, null));
   }
 
@@ -376,7 +407,7 @@ function ptCard(name, addr, metrics, firmware) {
 
 // ─── Cell / Module Grid ──────────────────────────────────────────────────
 
-function renderCellGrid(modules, stats) {
+function renderCellGrid(modules, stats, bat) {
   const section = document.getElementById("cell-section");
   const gridEl = document.getElementById("module-grid");
   const statsEl = document.getElementById("cell-stats-bar");
@@ -396,26 +427,33 @@ function renderCellGrid(modules, stats) {
   const packSpread = stats?.pack_spread_mv ?? 0;
   const spreadClass = packSpread > 100 ? "critical" : packSpread > 50 ? "warning" : "";
 
+  // Cell extremes from OBDb DIDs (if available)
+  const cvMax = bat?.cell_v_max_mv;
+  const cvMin = bat?.cell_v_min_mv;
+  const cvDelta = bat?.cell_v_delta_mv;
+  const csMax = bat?.cell_soc_max;
+  const csMin = bat?.cell_soc_min;
+
   statsEl.innerHTML = `
     <div class="cell-stat">
       <div class="cell-stat-label">Modules</div>
       <div class="cell-stat-value">${stats?.module_count || 0}<span class="cell-stat-unit">/ 33</span></div>
     </div>
     <div class="cell-stat">
-      <div class="cell-stat-label">Cell Pair Min</div>
-      <div class="cell-stat-value">${(packMin / 1000).toFixed(3)}<span class="cell-stat-unit">V</span></div>
+      <div class="cell-stat-label">Cell V Min</div>
+      <div class="cell-stat-value">${cvMin != null ? (cvMin / 1000).toFixed(3) : (packMin / 1000).toFixed(3)}<span class="cell-stat-unit">V${cvMin != null && bat.cell_v_min_idx != null ? ` #${bat.cell_v_min_idx}` : ""}</span></div>
     </div>
     <div class="cell-stat">
-      <div class="cell-stat-label">Cell Pair Max</div>
-      <div class="cell-stat-value">${(packMax / 1000).toFixed(3)}<span class="cell-stat-unit">V</span></div>
+      <div class="cell-stat-label">Cell V Max</div>
+      <div class="cell-stat-value">${cvMax != null ? (cvMax / 1000).toFixed(3) : (packMax / 1000).toFixed(3)}<span class="cell-stat-unit">V${cvMax != null && bat.cell_v_max_idx != null ? ` #${bat.cell_v_max_idx}` : ""}</span></div>
     </div>
     <div class="cell-stat">
-      <div class="cell-stat-label">Pack Average</div>
-      <div class="cell-stat-value">${(packAvg / 1000).toFixed(3)}<span class="cell-stat-unit">V</span></div>
+      <div class="cell-stat-label">Cell SoC</div>
+      <div class="cell-stat-value">${csMin != null && csMax != null ? `${csMin}–${csMax}` : (packAvg / 1000).toFixed(3)}<span class="cell-stat-unit">${csMin != null ? "%" : "V avg"}</span></div>
     </div>
     <div class="cell-stat">
       <div class="cell-stat-label">Spread (Δ)</div>
-      <div class="cell-stat-value ${spreadClass}">${packSpread}<span class="cell-stat-unit">mV</span></div>
+      <div class="cell-stat-value ${spreadClass}">${cvDelta != null ? cvDelta : packSpread}<span class="cell-stat-unit">mV</span></div>
     </div>
   `;
 

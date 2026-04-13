@@ -215,23 +215,19 @@ def decode_battery(raw_dids: dict[int, Optional[bytes]]) -> dict:
         if raw is not None:
             result["raw_dids"][f"0x{did:04X}"] = raw.hex()
 
-    # SoC (0x0286): 1 byte, raw BMS value remapped to displayed %
-    # Raw range ~5 (0% displayed) to ~137 (100% displayed)
-    # Formula: displayed = (raw - 5) / 132 * 100, clipped to 0-100
-    soc_raw = raw_dids.get(0x0286)
-    if soc_raw and len(soc_raw) >= 1:
-        result["soc_raw"] = soc_raw[0]
-        displayed = (soc_raw[0] - 5) / 132.0 * 100.0
-        result["soc_percent"] = round(max(0, min(100, displayed)), 1)
-
-    # SoC display (0x028C): 1 byte, direct percentage (BMS remapped value)
-    # This is the display-ready SoC — use as fallback when 0x0286 doesn't respond
+    # SoC (0x028C): 1 byte, BMS state of charge — PRIMARY source
+    # OBDb signal TAYCAN_BMS_SOC: direct percentage, no scaling.
+    # This is the BMS internal SoC; may differ from car display by a few %
+    # at the extremes (BMS reserves buffer at top/bottom of range).
     soc_display = raw_dids.get(0x028C)
     if soc_display and len(soc_display) >= 1:
-        if result["soc_percent"] is None:
-            # 0x0286 didn't respond — use 0x028C as SoC
-            result["soc_raw"] = soc_display[0]
-            result["soc_percent"] = soc_display[0]
+        result["soc_raw"] = soc_display[0]
+        result["soc_percent"] = soc_display[0]
+
+    # 0x0286: DO NOT USE for SoC — intermittent and returns stale values.
+    # Responded in only 4 of 11 scans, always returning ~134 regardless of
+    # actual charge level. Likely a calibration/reference value, not live SoC.
+    # Kept in BATTERY_DIDS for raw data collection only.
 
     # Charging status (0x02B2): 1=charging, 0=not
     charge_raw = raw_dids.get(0x02B2)

@@ -150,7 +150,7 @@ See [TECHNICAL.md](TECHNICAL.md) for the full protocol reference including DoIP 
 - Gateway logical address: `0x4010` (not the typical `0x1010`)
 - All ECU addresses are in the `0x40xx` range
 - BECM (battery controller) at `0x407B`
-- SoC: DID `0x0286`, formula `(raw - 5) / 132 * 100` (remapped to match car display)
+- SoC: DID `0x028C`, direct percentage (BMS internal SoC, per OBDb signal `TAYCAN_BMS_SOC`)
 - SoH: DID `0x51E0`, formula `raw * 0.127 - 1798.574` (default session, confirmed via [OBDb](https://github.com/OBDb/Porsche-Taycan))
 - Pack voltage: DID `0x02BD` bytes 2-3, scale `x0.15V`
 - Pack current: DID `0x02BD` bytes 0-1, scale `x0.1A` (signed)

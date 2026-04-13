@@ -266,36 +266,35 @@ The Battery Energy Control Module (BECM) at DoIP address `0x407B` provides the m
 
 ### Confirmed Battery DIDs
 
-#### DID 0x0286 — State of Charge (SoC)
+#### DID 0x028C — State of Charge (SoC) ✓ PRIMARY
 
 | Property | Value |
 |----------|-------|
 | Size | 1 byte |
-| Encoding | Raw BMS value, remapped to display percentage |
-| Formula | `displayed = (raw - 5) / 132 * 100`, clipped to 0–100% |
-| Example | Raw `0x85` (133) → `(133 - 5) / 132 * 100 = 97.0%` |
-
-The raw BMS SoC has a usable range of approximately 5 (0% displayed) to 137 (100% displayed). The car's dashboard applies this same remapping. Values above 137 are clipped to 100%.
-
-**Confirmation:** Dashboard showed 97% while raw byte was 133. Formula `(133-5)/132*100 = 97.0%` — exact match.
-
-This is a live value — changes in real-time during charging/driving.
-
-#### DID 0x028C — SoC Display (BMS-remapped percentage)
-
-| Property | Value |
-|----------|-------|
-| Size | 1 byte |
-| Encoding | Direct percentage, already remapped |
+| Encoding | Direct percentage (BMS internal SoC) |
+| Source | OBDb signal `TAYCAN_BMS_SOC` |
 | Example | `0x39` (57) = 57% (car dashboard showed 56%) |
 
-**IMPORTANT:** Initially assumed to be SoH, but confirmed as display-ready SoC:
-- Car at ~97% → DID reads 96
-- Car at 56% → DID reads 57
+This is the BMS internal SoC percentage. It closely tracks the car's displayed SoC at mid-range but diverges at the extremes due to usable-range buffering:
 
-Tracks ~1% above the displayed SoC. This is the BMS's own pre-remapped value — use as a fallback when DID 0x0286 doesn't respond.
+| BMS SoC (0x028C) | Car display | Difference |
+|-------------------|-------------|------------|
+| 95% | 97% | BMS 2% below |
+| 56–57% | 56–57% | Matches |
+| 23% | 17% | BMS 6% above |
 
-**The real SoH DID has not been conclusively identified yet.** See section 4.5 for SoH candidates under investigation.
+The car reserves buffer at both ends of the SoC range to protect cells from over-charge and deep discharge, so the displayed SoC is a non-linear remap of the BMS SoC.
+
+#### DID 0x0286 — DO NOT USE for SoC
+
+| Property | Value |
+|----------|-------|
+| Size | 1 byte |
+| Status | **Unreliable** — intermittent, returns stale values |
+
+Responded in only 4 of 11 scans and always returned ~134 (0x85-0x86) regardless of actual charge level. At 17% actual SoC, it still read 134 → false 97.7% reading. Likely a calibration/reference value rather than live SoC.
+
+Previously used as the primary SoC source with formula `(raw - 5) / 132 * 100`, which worked at high SoC by coincidence (the stale value matched the actual SoC). Demoted to raw data collection only.
 
 #### DID 0x02B2 — Charging Status
 
@@ -945,7 +944,7 @@ The Taycan gateway goes to sleep after a period of inactivity, even with the ign
 ## 8. Investigation Plan
 
 ### Current state
-- **SoC:** fully decoded (DID 0x0286 with remap, fallback DID 0x028C as direct %)
+- **SoC:** ✓ DID 0x028C, direct percentage (BMS SoC). DID 0x0286 unreliable — returns stale values.
 - **Pack voltage/current/power:** decoded from DID 0x02BD
 - **Temperature:** decoded from DID 0x02CB (min/max °C)
 - **Module balancing:** partial (DID 0x0407)

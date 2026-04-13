@@ -120,10 +120,15 @@ BATTERY_DIDS = [
     0x0440,  # Config data
     0x04FC,  # Unknown
     0x04FE,  # Unknown
+    0x51E0,  # SoH — HV battery health (2 bytes, default session)
+             # Source: OBDb/Porsche-Taycan signalset, confirmed across MY2020-2025
 ]
 
-# SoH candidates (extended session required)
-SOH_CANDIDATE_DIDS = [0x1E1C, 0x1E1E]
+# BMS current limits (extended session required)
+# 0x1E1C = max dynamic discharge current limit (amps)
+# 0x1E1E = max predicted discharge current limit (amps)
+# NOT SoH — these vary with temperature/SoC. Kept for analysis.
+BMS_CURRENT_LIMIT_DIDS = [0x1E1C, 0x1E1E]
 
 # Per-module cell data (extended session required)
 # 33 blocks × 43 bytes each — physical module grid with 6 cell pair voltages
@@ -277,13 +282,24 @@ def decode_battery(raw_dids: dict[int, Optional[bytes]]) -> dict:
         result["module_grid"] = grid
         result["cell_stats"] = compute_cell_stats(grid)
 
-    # 0x1E1C / 0x1E1E: NOT SoH — confirmed volatile (varies 76-86%
-    # across scans at similar SoC). Likely temperature-adjusted available
-    # capacity or energy metric. Stored as raw for analysis only.
-    for did in SOH_CANDIDATE_DIDS:
+    # SoH (0x51E0): 2 bytes uint16 BE
+    # Formula from OBDb/Porsche-Taycan: raw * 0.127 - 1798.574
+    # Confirmed across MY2020-2025 test data (e.g. 0x39FC → 86.614%)
+    soh_raw = raw_dids.get(0x51E0)
+    if soh_raw and len(soh_raw) >= 2:
+        raw_val = int.from_bytes(soh_raw[:2], "big")
+        result["soh_raw"] = raw_val
+        if raw_val > 0:
+            soh = raw_val * 0.127 - 1798.574
+            result["soh_percent"] = round(max(0, soh), 1)
+
+    # 0x1E1C / 0x1E1E: BMS current limits (amps), NOT SoH.
+    # 0x1E1C = max dynamic discharge current limit
+    # 0x1E1E = max predicted discharge current limit
+    # Vary with temperature/SoC — stored as raw for analysis.
+    for did in BMS_CURRENT_LIMIT_DIDS:
         raw = raw_dids.get(did)
         if raw and len(raw) >= 2:
-            val = int.from_bytes(raw[:2], "big")
             result["raw_dids"][f"0x{did:04X}"] = raw.hex()
 
     return result

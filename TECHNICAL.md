@@ -418,22 +418,41 @@ Value: `0x81 85 A2 67 6D`. First byte `0x81` may be a flag/address byte. Remaini
 
 A comprehensive sweep of the BECM in extended diagnostic session (0x10 0x03) revealed 134 additional DIDs not available in default session. These include per-module data, cell voltages, and SoH candidates.
 
-#### SoH candidates — RULED OUT
+#### SoH — DID 0x51E0 ✓ CONFIRMED
+
+| Property | Value |
+|----------|-------|
+| DID | `0x51E0` |
+| Size | 2 bytes (uint16 BE) |
+| Session | Default (no extended session needed) |
+| Formula | `raw * 0.127 - 1798.574` = percent |
+| Sentinel | raw = 0x0000 → no data |
+| Source | [OBDb/Porsche-Taycan](https://github.com/OBDb/Porsche-Taycan) signalset (signal `TAYCAN_HVBAT_SOH`) |
+
+Community test data across model years:
+
+| MY | Raw hex | Raw dec | SoH % |
+|----|---------|---------|-------|
+| 2020 | `0x3A00` | 14848 | 87.1% |
+| 2021 | `0x39FC` | 14844 | 86.6% |
+| 2022 | `0x3A02` | 14850 | 87.4% |
+| 2023 | `0x3A31` | 14897 | 93.3% |
+| 2024 | `0x3A28` | 14888 | 92.2% |
+
+This DID was not found during initial investigation because it falls in the 0x5000–0xFFFF range which had not been swept.
+
+#### DIDs 0x1E1C / 0x1E1E — BMS Current Limits (NOT SoH)
 
 | DID | Size | Scan 1 | Scan 2 | Scan 3 |
 |-----|------|--------|--------|--------|
-| `0x1E1C` | 2 bytes | `0x035C` (860 → 86.0%) | `0x0356` (854 → 85.4%) | `0x02FA` (762 → 76.2%) |
-| `0x1E1E` | 2 bytes | `0x035C` (860 → 86.0%) | `0x0356` (854 → 85.4%) | `0x02FA` (762 → 76.2%) |
+| `0x1E1C` | 2 bytes | `0x035C` (860) | `0x0356` (854) | `0x02FA` (762) |
+| `0x1E1E` | 2 bytes | `0x035C` (860) | `0x0356` (854) | `0x02FA` (762) |
 
-**RULED OUT as SoH.** Values dropped from 86% to 76% overnight — real SoH changes by fractions of a percent per month, not 10% per day. These DIDs likely represent a **temperature-adjusted available capacity** or instantaneous energy metric that varies with pack temperature, SoC, and operating conditions.
+**Not SoH — these are BMS discharge current limits (amps).** Per OBDb signalset:
+- `0x1E1C` = Maximum dynamic discharge current limit (`TAYCAN_BMS_I_DCHG_LIM_DYN`)
+- `0x1E1E` = Maximum predicted discharge current limit (`TAYCAN_BMS_I_DCHG_LIM_PRED`)
 
-Both DIDs always return identical values to each other.
-
-**The real SoH DID has not been found.** It may require:
-- Security access (service 0x27) to unlock
-- A different DID range not yet swept (0x5000-0xFFFF)
-- Reading from a different ECU (VCU, Gateway)
-- A dealer-only diagnostic session
+Values vary with temperature and SoC, which explains the 860→762 drop overnight as the battery cooled. Both DIDs always return identical values.
 
 #### Cell voltage array — DID 0x0667 (396 bytes, 198 × uint16 BE)
 
@@ -930,21 +949,17 @@ The Taycan gateway goes to sleep after a period of inactivity, even with the ign
 - **Pack voltage/current/power:** decoded from DID 0x02BD
 - **Temperature:** decoded from DID 0x02CB (min/max °C)
 - **Module balancing:** partial (DID 0x0407)
-- **SoH:** NOT confirmed — two candidates (0x1E1C, 0x1E1E = 86.0%)
-- **Cell-level data:** discovered but not decoded (0x0667, 0x1850–0x1870)
+- **SoH:** ✓ CONFIRMED — DID 0x51E0, default session, formula `raw * 0.127 - 1798.574`
+- **Cell-level data:** decoded (0x0667 = 198 cell pair voltages, 0x1850–0x1870 = per-module grid)
 
-### Priority 1: Find the SoH DID
+### Priority 1: Find the SoH DID — ✓ DONE
 
-**Candidates 0x1E1C/0x1E1E: RULED OUT.** Dropped from 86% to 76% overnight — far too volatile for SoH. These are likely temperature/capacity metrics.
+**SoH confirmed as DID 0x51E0** on the BECM (default session, 2 bytes uint16 BE). Source: [OBDb/Porsche-Taycan](https://github.com/OBDb/Porsche-Taycan) community signalset. See section 4.5 for full details.
 
-**BECM upper range 0x2000-0x4FFF: SWEPT.** Only 1 hit (factory part code). No SoH candidate found.
-
-**Remaining options:**
-1. DID range 0x5000-0xFFFF on the BECM (not yet swept)
-2. Security access (service 0x27) — some DIDs may only respond after authentication
-3. Reading from the VCU (0x4076) or Gateway (0x4010) instead of the BECM
-4. Programming session (0x02) instead of extended (0x03)
-5. A dealer PIWIS comparison — photograph the SoH value and the DID traffic simultaneously
+**Previous candidates ruled out:**
+- 0x1E1C/0x1E1E: BMS discharge current limits (amps), not SoH. Vary with temperature/SoC.
+- 0x028C: SoC display value, not SoH.
+- BECM upper range 0x2000-0x4FFF: swept, only 1 hit (factory part code).
 
 ### Priority 2: Decode cell-level data
 
@@ -981,11 +996,13 @@ ASCII letter triplets like "NMS", "NOT", "MMR". Each module has one entry.
 
 ### Priority 3: Complete the DID sweep
 
-Ranges not yet swept on the BECM:
-- `0x2000–0x2FFF` — may contain more diagnostic data
-- `0x3000–0x3FFF` — may contain configuration
-- `0x4000–0x4FFF` — may contain tables or logs
-- `0x5000–0xEFFF` — high manufacturer range
+Ranges swept on the BECM:
+- `0x0100–0x1FFF` — 134 DIDs found (extended session)
+- `0x2000–0x4FFF` — 1 DID found (factory part code at 0x484E)
+- `0x5000–0xFFFF` — contains SoH (0x51E0), further sweep pending
+
+Remaining unswept ranges on other ECUs:
+- `0x5000–0xEFFF` — high manufacturer range on VCU, Gateway, Cluster
 
 ### Priority 4: Verify hypotheses at different states
 
@@ -1011,7 +1028,7 @@ Each of these DIDs has a static hypothesis that needs confirmation:
 
 ## 9. Known unknowns
 
-1. **SoH location** — NOT FOUND. Candidates 0x1E1C/0x1E1E ruled out (volatile). BECM upper range 0x2000-0x4FFF swept with no result. May require security access (0x27) or a different ECU/session type.
+1. **SoH location** — ✓ FOUND. DID `0x51E0` on BECM, default session, `raw * 0.127 - 1798.574`. Source: OBDb/Porsche-Taycan. Previous candidates 0x1E1C/0x1E1E confirmed as BMS discharge current limits (amps).
 2. **DID 0x02BD byte 4** — changes with voltage, but encoding unclear
 3. **DID 0x02F9/0x02FA** — 5-byte cell data blocks, first byte `0x81` looks like a flag
 4. **DIDs 0x1900/0x1901** — 4-byte counters (89,661 and 82,357) — km driven? charge cycles? Wh counters?
@@ -1020,7 +1037,7 @@ Each of these DIDs has a static hypothesis that needs confirmation:
 7. **DC charging data** — all reads so far are AC charging only. DC fast charging would populate HV Booster telemetry and may reveal different OBC behaviour
 8. **Inverter motor data** — 0x028D returns non-zero at rest (1663/1868) — meaning unknown. Motor RPM/torque/phase data likely zero until driving
 9. **OBC grid voltage scale** — raw values 750/761 from 0x1DDB map to ~230V EU supply but exact scale factor unconfirmed
-10. **BECM 0x5000-0xFFFF range** — not yet swept, may contain SoH or additional cell-level data
+10. **BECM 0x5000-0xFFFF range** — contains SoH (0x51E0), full sweep of remaining DIDs pending
 
 ---
 

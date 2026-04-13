@@ -122,28 +122,31 @@ STANDARD_DIDS = {
 
 
 # ─── Battery DIDs (BECM 0x8C — EV_BECM1982091) ────────────────────────────
+# Confirmed responding on BECM: 0x0286, 0x028C, 0x02B2, 0x02B3, 0x02BD, 0x02CB, 0x51E0
+# The rest below are standard UDS guesses — most return NRC 0x31 (not supported).
 
 BATTERY_DIDS = {
-    0x028C: "Battery State of Health (SoH %)",
-    0x028D: "Battery State of Charge (SoC %)",
-    0x028E: "Battery Remaining Capacity (Wh)",
-    0x028F: "Battery Design Capacity (Wh)",
-    0x0290: "HV Battery Voltage (V)",
-    0x0291: "HV Battery Current (A)",
-    0x0292: "HV Battery Power (kW)",
-    0x0294: "Battery Temp Min (°C)",
-    0x0295: "Battery Temp Max (°C)",
-    0x0296: "Battery Temp Avg (°C)",
-    0x02A0: "Cell Voltage Min (mV)",
-    0x02A1: "Cell Voltage Max (mV)",
-    0x02A2: "Cell Voltage Delta (mV)",
-    0x02B0: "Charge Power Limit (kW)",
-    0x02B1: "Discharge Power Limit (kW)",
-    0x02B2: "Max Charging Current (A)",
-    0x02C0: "Total Energy Charged (kWh)",
-    0x02C1: "Total Energy Discharged (kWh)",
-    0x02C2: "Charge Cycle Count",
-    0x02C3: "Fast Charge Count (DC)",
+    0x028C: "Battery SoC Display (pre-remapped %)",
+    0x028D: "Motor Metric (inverter only, does not respond on BECM)",
+    0x028E: "Battery Remaining Capacity (Wh) [unconfirmed]",
+    0x028F: "Battery Design Capacity (Wh) [unconfirmed]",
+    0x0290: "HV Battery Voltage (V) [unconfirmed]",
+    0x0291: "HV Battery Current (A) [unconfirmed]",
+    0x0292: "HV Battery Power (kW) [unconfirmed]",
+    0x0294: "Battery Temp Min (°C) [unconfirmed]",
+    0x0295: "Battery Temp Max (°C) [unconfirmed]",
+    0x0296: "Battery Temp Avg (°C) [unconfirmed]",
+    0x02A0: "Cell Voltage Min (mV) [unconfirmed]",
+    0x02A1: "Cell Voltage Max (mV) [unconfirmed]",
+    0x02A2: "Cell Voltage Delta (mV) [unconfirmed]",
+    0x02B0: "Charge Power Limit (kW) [unconfirmed]",
+    0x02B1: "Discharge Power Limit (kW) [unconfirmed]",
+    0x02B2: "Charging Status (1=charging, 0=idle)",
+    0x02C0: "Total Energy Charged (kWh) [unconfirmed]",
+    0x02C1: "Total Energy Discharged (kWh) [unconfirmed]",
+    0x02C2: "Charge Cycle Count [unconfirmed]",
+    0x02C3: "Fast Charge Count (DC) [unconfirmed]",
+    0x51E0: "Battery State of Health (SoH %) — raw * 0.127 - 1798.574",
 }
 
 

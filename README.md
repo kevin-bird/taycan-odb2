@@ -6,7 +6,7 @@ Open-source diagnostic tool for the Porsche Taycan (J1 / J1.1 platform). Connect
 
 ## What it does
 
-- **Battery monitoring** — reads SoC, pack voltage, current, power, temperatures, module balancing status, cell-level voltages (33 modules, 198 cell pairs with physical positions), and charging state directly from the BECM. SoH DID is under investigation.
+- **Battery monitoring** — reads SoC, SoH, pack voltage, current, power, temperatures, module balancing status, cell-level voltages (33 modules, 198 cell pairs with physical positions), and charging state directly from the BECM.
 - **Full ECU scan** — probes all 42 ECUs for identification (SW/HW part numbers, versions, serial numbers, FAZIT, manufacturing dates) and fault codes
 - **Fault code lookup** — 69 known Taycan DTCs with descriptions, severity levels, and notes sourced from NHTSA TSBs, forums, and field data
 - **Smart DTC filtering** — separates real faults (active/pending/confirmed) from the ~2800 "test not completed" entries that VAG ECUs return
@@ -88,7 +88,7 @@ To access from another device on the same network, use your Mac's IP instead of 
 ## Dashboard features
 
 ### Battery panel
-- **SoH gauge** — shows battery health percentage when available (SoH DID under investigation, currently shows --)
+- **SoH gauge** — shows battery health percentage (DID 0x51E0, confirmed via OBDb community signalset)
 - **SoC gauge** — large circular gauge with color coding, remapped to match car's displayed percentage
 - **Pack voltage** — live HV pack voltage (typically ~800V)
 - **Current / Power** — charge current (A) and power (kW)
@@ -151,7 +151,7 @@ See [TECHNICAL.md](TECHNICAL.md) for the full protocol reference including DoIP 
 - All ECU addresses are in the `0x40xx` range
 - BECM (battery controller) at `0x407B`
 - SoC: DID `0x0286`, formula `(raw - 5) / 132 * 100` (remapped to match car display)
-- SoH: **not yet found** — candidates 0x1E1C/0x1E1E ruled out (volatile), 0x028C is SoC not SoH
+- SoH: DID `0x51E0`, formula `raw * 0.127 - 1798.574` (default session, confirmed via [OBDb](https://github.com/OBDb/Porsche-Taycan))
 - Pack voltage: DID `0x02BD` bytes 2-3, scale `x0.15V`
 - Pack current: DID `0x02BD` bytes 0-1, scale `x0.1A` (signed)
 - Temperature: DID `0x02CB`, 2 bytes (min/max celsius)

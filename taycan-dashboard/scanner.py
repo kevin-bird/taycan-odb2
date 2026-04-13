@@ -270,8 +270,8 @@ def run_scan(gateway_ip: str = None,
                         progress_callback(idx + 1, total,
                                           f"Reading cell data (extended session)")
 
-                    # SoH candidates
-                    for did in config.SOH_CANDIDATE_DIDS:
+                    # BMS current limits (dynamic/predicted discharge)
+                    for did in config.BMS_CURRENT_LIMIT_DIDS:
                         raw = conn.read_did(addr, did, config.UDS_TIMEOUT)
                         if raw is not None:
                             battery_raw[did] = raw
